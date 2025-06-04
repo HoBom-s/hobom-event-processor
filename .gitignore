@@ -1,0 +1,21 @@
+# go build artifacts
+/bin/
+/build/
+*.exe
+*.out
+*.test
+
+# modules
+vendor/
+
+# IDE & editor config
+.vscode/
+.idea/
+
+# Environment files
+.env
+.env.*
+*.local
+
+# dependency cache
+go.sum
