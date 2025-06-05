@@ -18,15 +18,14 @@ type OutboxProcessor struct {
 func NewOutboxProcessor(
 	poller outboxPort.OutboxPoller,
 	publisher eventPublish.OutboxEventPublisher,
-	logger *EventLogger,
+	logger EventLogger,
 ) *OutboxProcessor {
 	return &OutboxProcessor{
 		Pollers:    []outboxPort.OutboxPoller{poller},
 		Publisher:  publisher,
-		Repository: *logger,
+		Repository: logger,
 	}
 }
-
 
 func RunOutboxProcessor(proc *OutboxProcessor) {
 	go proc.Run()
