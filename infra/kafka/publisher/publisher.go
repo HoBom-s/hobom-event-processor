@@ -3,7 +3,7 @@ package publisher
 import (
 	"context"
 
-	utils "github.com/HoBom-s/hobom-event-processor/internal/utils"
+	utils "github.com/HoBom-s/hobom-event-processor/pkg/utils"
 	"github.com/segmentio/kafka-go"
 )
 
