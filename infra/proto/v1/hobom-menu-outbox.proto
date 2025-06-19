@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package outbox;
+
+option go_package = "github.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupb";
+
+service FindTodayMenuOutboxController {
+  rpc FindOutboxByEventTypeAndStatusUseCase (Request) returns (Response);
+}
+
+message Request {
+  string eventType = 1;
+  string status = 2;
+}
+
+message Response {
+  repeated QueryResult items = 1;
+}
+
+message QueryResult {
+  string id = 1;
+  string eventId = 2;
+  string eventType = 3;
+  TodayMenuPayload payload = 4;
+  string status = 5;
+  int32 retryCount = 6;
+  string sentAt = 7;
+  string failedAt = 8;
+  string lastError = 9;
+  int32 version = 10;
+  string createdAt = 11;
+  string updatedAt = 12;
+}
+
+message TodayMenuPayload {
+  string todayMenuId = 1;
+  string name = 2;
+}
