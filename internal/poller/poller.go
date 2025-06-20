@@ -6,7 +6,7 @@ import (
 	"log"
 	"time"
 
-	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox"
+	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/proto/menu/outbox/v1"
 
 	"google.golang.org/grpc"
 )

@@ -28,3 +28,11 @@ This Go-based service is responsible for polling domain outbox events via gRPC a
 ---
 
 This service acts as a **stateless, scalable event forwarder**, bridging your domain event store with external consumers via Kafka.
+
+---
+
+### Start server
+
+```sh
+make run
+```
