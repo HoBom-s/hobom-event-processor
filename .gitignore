@@ -19,6 +19,3 @@ vendor/
 
 # dependency cache
 go.sum
-
-# ignore compiled proto files
-infra/grpc/**/*.pb.go
