@@ -1,29 +1,20 @@
-PROTO_DIR := ./infra/proto/v1
-PB_BASE := ./infra/grpc/v1
-
-PROTO_FILES := $(shell find $(PROTO_DIR) -name "*.proto")
+PROTO_DIR := ./hobom-buf-proto
+PB_DIR := ./infra/grpc
 
 .PHONY: proto run clean
 
+sync-submodule:
+	@git submodule update --remote --merge $(PROTO_DIR)
+	@echo "🔄 Submodule updated: $(PROTO_DIR)"
+
 proto:
-	@echo "📦 Compiling proto files..."
-	@mkdir -p $(PB_BASE)
-	@for file in $(PROTO_FILES); do \
-		name=$$(basename $$file .proto); \
-		out_dir=$(PB_BASE)/$$name; \
-		mkdir -p $$out_dir; \
-		protoc \
-			--proto_path=$(PROTO_DIR) \
-			--go_out=$$out_dir \
-			--go-grpc_out=$$out_dir \
-			--go_opt=paths=source_relative \
-			--go-grpc_opt=paths=source_relative \
-			$$file; \
-	done
+	@command -v buf >/dev/null 2>&1 || { echo >&2 "❌ buf CLI not found. Please install: brew install bufbuild/buf/buf"; exit 1; }
+	@echo "📦 Generating proto files with buf..."
+	buf generate $(PROTO_DIR)
 	@echo "✅ Done!"
 
 run: proto
 	go run ./cmd/main.go
 
 clean:
-	rm -rf $(PB_BASE)
+	rm -rf $(PB_DIR)

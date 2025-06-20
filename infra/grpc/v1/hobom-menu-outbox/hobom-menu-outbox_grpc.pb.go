@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v5.29.3
-// source: hobom-menu-outbox.proto
+// source: hobom-buf-proto/proto/menu/outbox/v1/hobom-menu-outbox.proto
 
 package hobommenupb
 
@@ -118,5 +118,5 @@ var FindTodayMenuOutboxController_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "hobom-menu-outbox.proto",
+	Metadata: "hobom-buf-proto/proto/menu/outbox/v1/hobom-menu-outbox.proto",
 }
