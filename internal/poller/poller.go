@@ -2,57 +2,38 @@ package poller
 
 import (
 	"context"
-	"fmt"
 	"log"
-	"time"
-
-	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox"
+	"sync"
 
 	"google.golang.org/grpc"
 )
 
-
-type Poller struct {
-	client outboxPb.FindTodayMenuOutboxControllerClient
+// 공통 Poller 인터페이스
+type Poller interface {
+	StartPolling(ctx context.Context)
 }
 
-func NewPoller(conn *grpc.ClientConn) *Poller {
-	return &Poller{
-		client: outboxPb.NewFindTodayMenuOutboxControllerClient(conn),
+// 모든 polling 을 초기화 및 수행하도록 한다.
+// gRPC 통신을 위한 초기 로직을 수행하도록 한다.
+func StartAllPollers(ctx context.Context, conn *grpc.ClientConn) {
+	var wg sync.WaitGroup
+
+	pollers := []Poller{
+		NewTodayMenuPoller(conn),
 	}
-}
 
-func (p *Poller) StartPolling(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
+	for _, p := range pollers {
+		wg.Add(1)
+		go func(poller Poller) {
+			defer wg.Done()
+			poller.StartPolling(ctx)
+		}(p)
+	}
 
+	log.Println("🚀 All pollers started.")
 	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				p.poll(ctx)
-
-			case <-ctx.Done():
-				log.Println("Polling stopped")
-				ticker.Stop()
-				return
-			}
-		}
+		<-ctx.Done()
 	}()
-}
 
-func (p *Poller) poll(ctx context.Context) {
-	req := &outboxPb.Request{
-		EventType: EventTypeTodayMenu,
-		Status:    OutboxPending,
-	}
-
-	res, err := p.client.FindOutboxByEventTypeAndStatusUseCase(ctx, req)
-	if err != nil {
-		log.Printf("gRPC call failed: %v", err)
-		return
-	}
-
-	for _, item := range res.Items {
-		fmt.Printf("Got Outbox ID: %s, Event: %s\n", item.Id, item.EventType)
-	}
+	wg.Wait()
 }

@@ -9,11 +9,12 @@ import (
 	"github.com/HoBom-s/hobom-event-processor/internal/poller"
 	"github.com/gin-gonic/gin"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 func main() {
 	// 1. Connect gRPC
-	conn, err := grpc.Dial("localhost:50051", grpc.WithInsecure())
+	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to gRPC: %v", err)
 	}
@@ -23,8 +24,7 @@ func main() {
 	defer cancel()
 
 	// 2. Start polling
-	p := poller.NewPoller(conn)
-	p.StartPolling(ctx)
+	go poller.StartAllPollers(ctx, conn)
 	log.Printf("Started Polling...")
 
 	// 3. Start Gin server
