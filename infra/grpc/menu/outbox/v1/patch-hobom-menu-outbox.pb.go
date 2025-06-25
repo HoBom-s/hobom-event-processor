@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: proto/menu/outbox/v1/patch-hobom-menu-outbox.proto
+// source: menu/outbox/v1/patch-hobom-menu-outbox.proto
 
 package hobommenupb
 
@@ -31,7 +31,7 @@ type MarkRequest struct {
 
 func (x *MarkRequest) Reset() {
 	*x = MarkRequest{}
-	mi := &file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[0]
+	mi := &file_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *MarkRequest) String() string {
 func (*MarkRequest) ProtoMessage() {}
 
 func (x *MarkRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[0]
+	mi := &file_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *MarkRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkRequest.ProtoReflect.Descriptor instead.
 func (*MarkRequest) Descriptor() ([]byte, []int) {
-	return file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescGZIP(), []int{0}
+	return file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *MarkRequest) GetEventId() string {
@@ -76,7 +76,7 @@ type MarkFailedRequest struct {
 
 func (x *MarkFailedRequest) Reset() {
 	*x = MarkFailedRequest{}
-	mi := &file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[1]
+	mi := &file_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -88,7 +88,7 @@ func (x *MarkFailedRequest) String() string {
 func (*MarkFailedRequest) ProtoMessage() {}
 
 func (x *MarkFailedRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[1]
+	mi := &file_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -101,7 +101,7 @@ func (x *MarkFailedRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarkFailedRequest.ProtoReflect.Descriptor instead.
 func (*MarkFailedRequest) Descriptor() ([]byte, []int) {
-	return file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescGZIP(), []int{1}
+	return file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *MarkFailedRequest) GetEventId() string {
@@ -118,11 +118,11 @@ func (x *MarkFailedRequest) GetErrorMessage() string {
 	return ""
 }
 
-var File_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto protoreflect.FileDescriptor
+var File_menu_outbox_v1_patch_hobom_menu_outbox_proto protoreflect.FileDescriptor
 
-const file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc = "" +
+const file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc = "" +
 	"\n" +
-	"2proto/menu/outbox/v1/patch-hobom-menu-outbox.proto\x12\x06outbox\x1a\x1bgoogle/protobuf/empty.proto\"'\n" +
+	",menu/outbox/v1/patch-hobom-menu-outbox.proto\x12\x06outbox\x1a\x1bgoogle/protobuf/empty.proto\"'\n" +
 	"\vMarkRequest\x12\x18\n" +
 	"\aeventId\x18\x01 \x01(\tR\aeventId\"Q\n" +
 	"\x11MarkFailedRequest\x12\x18\n" +
@@ -133,24 +133,24 @@ const file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc = "" +
 	"\x1ePatchOutboxMarkAsFailedUseCase\x12\x19.outbox.MarkFailedRequest\x1a\x16.google.protobuf.EmptyBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
 
 var (
-	file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescOnce sync.Once
-	file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescData []byte
+	file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescOnce sync.Once
+	file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescData []byte
 )
 
-func file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescGZIP() []byte {
-	file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescOnce.Do(func() {
-		file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc), len(file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc)))
+func file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescGZIP() []byte {
+	file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescOnce.Do(func() {
+		file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc), len(file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc)))
 	})
-	return file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescData
+	return file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescData
 }
 
-var file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
-var file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_goTypes = []any{
+var file_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
+var file_menu_outbox_v1_patch_hobom_menu_outbox_proto_goTypes = []any{
 	(*MarkRequest)(nil),       // 0: outbox.MarkRequest
 	(*MarkFailedRequest)(nil), // 1: outbox.MarkFailedRequest
 	(*emptypb.Empty)(nil),     // 2: google.protobuf.Empty
 }
-var file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs = []int32{
+var file_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs = []int32{
 	0, // 0: outbox.PatchOutboxController.PatchOutboxMarkAsSentUseCase:input_type -> outbox.MarkRequest
 	1, // 1: outbox.PatchOutboxController.PatchOutboxMarkAsFailedUseCase:input_type -> outbox.MarkFailedRequest
 	2, // 2: outbox.PatchOutboxController.PatchOutboxMarkAsSentUseCase:output_type -> google.protobuf.Empty
@@ -162,26 +162,26 @@ var file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs = []int32{
 	0, // [0:0] is the sub-list for field type_name
 }
 
-func init() { file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_init() }
-func file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_init() {
-	if File_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto != nil {
+func init() { file_menu_outbox_v1_patch_hobom_menu_outbox_proto_init() }
+func file_menu_outbox_v1_patch_hobom_menu_outbox_proto_init() {
+	if File_menu_outbox_v1_patch_hobom_menu_outbox_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc), len(file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc), len(file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   2,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_goTypes,
-		DependencyIndexes: file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs,
-		MessageInfos:      file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes,
+		GoTypes:           file_menu_outbox_v1_patch_hobom_menu_outbox_proto_goTypes,
+		DependencyIndexes: file_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs,
+		MessageInfos:      file_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes,
 	}.Build()
-	File_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto = out.File
-	file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_goTypes = nil
-	file_proto_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs = nil
+	File_menu_outbox_v1_patch_hobom_menu_outbox_proto = out.File
+	file_menu_outbox_v1_patch_hobom_menu_outbox_proto_goTypes = nil
+	file_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs = nil
 }

@@ -2,7 +2,7 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: proto/menu/outbox/v1/hobom-menu-outbox.proto
+// source: menu/outbox/v1/hobom-menu-outbox.proto
 
 package hobommenupb
 
@@ -31,7 +31,7 @@ type Request struct {
 
 func (x *Request) Reset() {
 	*x = Request{}
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[0]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *Request) String() string {
 func (*Request) ProtoMessage() {}
 
 func (x *Request) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[0]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Request.ProtoReflect.Descriptor instead.
 func (*Request) Descriptor() ([]byte, []int) {
-	return file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{0}
+	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Request) GetEventType() string {
@@ -82,7 +82,7 @@ type Response struct {
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[1]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[1]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{1}
+	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Response) GetItems() []*QueryResult {
@@ -137,7 +137,7 @@ type QueryResult struct {
 
 func (x *QueryResult) Reset() {
 	*x = QueryResult{}
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[2]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +149,7 @@ func (x *QueryResult) String() string {
 func (*QueryResult) ProtoMessage() {}
 
 func (x *QueryResult) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[2]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +162,7 @@ func (x *QueryResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryResult.ProtoReflect.Descriptor instead.
 func (*QueryResult) Descriptor() ([]byte, []int) {
-	return file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{2}
+	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *QueryResult) GetId() string {
@@ -259,7 +259,7 @@ type TodayMenuPayload struct {
 
 func (x *TodayMenuPayload) Reset() {
 	*x = TodayMenuPayload{}
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[3]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -271,7 +271,7 @@ func (x *TodayMenuPayload) String() string {
 func (*TodayMenuPayload) ProtoMessage() {}
 
 func (x *TodayMenuPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[3]
+	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -284,7 +284,7 @@ func (x *TodayMenuPayload) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TodayMenuPayload.ProtoReflect.Descriptor instead.
 func (*TodayMenuPayload) Descriptor() ([]byte, []int) {
-	return file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{3}
+	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *TodayMenuPayload) GetTodayMenuId() string {
@@ -301,11 +301,11 @@ func (x *TodayMenuPayload) GetName() string {
 	return ""
 }
 
-var File_proto_menu_outbox_v1_hobom_menu_outbox_proto protoreflect.FileDescriptor
+var File_menu_outbox_v1_hobom_menu_outbox_proto protoreflect.FileDescriptor
 
-const file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
+const file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
 	"\n" +
-	",proto/menu/outbox/v1/hobom-menu-outbox.proto\x12\x06outbox\"?\n" +
+	"&menu/outbox/v1/hobom-menu-outbox.proto\x12\x06outbox\"?\n" +
 	"\aRequest\x12\x1c\n" +
 	"\teventType\x18\x01 \x01(\tR\teventType\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\"5\n" +
@@ -334,25 +334,25 @@ const file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
 	"%FindOutboxByEventTypeAndStatusUseCase\x12\x0f.outbox.Request\x1a\x10.outbox.ResponseBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
 
 var (
-	file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescOnce sync.Once
-	file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData []byte
+	file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescOnce sync.Once
+	file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData []byte
 )
 
-func file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP() []byte {
-	file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescOnce.Do(func() {
-		file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc), len(file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc)))
+func file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP() []byte {
+	file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescOnce.Do(func() {
+		file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc), len(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc)))
 	})
-	return file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData
+	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData
 }
 
-var file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_proto_menu_outbox_v1_hobom_menu_outbox_proto_goTypes = []any{
+var file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_menu_outbox_v1_hobom_menu_outbox_proto_goTypes = []any{
 	(*Request)(nil),          // 0: outbox.Request
 	(*Response)(nil),         // 1: outbox.Response
 	(*QueryResult)(nil),      // 2: outbox.QueryResult
 	(*TodayMenuPayload)(nil), // 3: outbox.TodayMenuPayload
 }
-var file_proto_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = []int32{
+var file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = []int32{
 	2, // 0: outbox.Response.items:type_name -> outbox.QueryResult
 	3, // 1: outbox.QueryResult.payload:type_name -> outbox.TodayMenuPayload
 	0, // 2: outbox.FindTodayMenuOutboxController.FindOutboxByEventTypeAndStatusUseCase:input_type -> outbox.Request
@@ -364,26 +364,26 @@ var file_proto_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_proto_menu_outbox_v1_hobom_menu_outbox_proto_init() }
-func file_proto_menu_outbox_v1_hobom_menu_outbox_proto_init() {
-	if File_proto_menu_outbox_v1_hobom_menu_outbox_proto != nil {
+func init() { file_menu_outbox_v1_hobom_menu_outbox_proto_init() }
+func file_menu_outbox_v1_hobom_menu_outbox_proto_init() {
+	if File_menu_outbox_v1_hobom_menu_outbox_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc), len(file_proto_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc), len(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_proto_menu_outbox_v1_hobom_menu_outbox_proto_goTypes,
-		DependencyIndexes: file_proto_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs,
-		MessageInfos:      file_proto_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes,
+		GoTypes:           file_menu_outbox_v1_hobom_menu_outbox_proto_goTypes,
+		DependencyIndexes: file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs,
+		MessageInfos:      file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes,
 	}.Build()
-	File_proto_menu_outbox_v1_hobom_menu_outbox_proto = out.File
-	file_proto_menu_outbox_v1_hobom_menu_outbox_proto_goTypes = nil
-	file_proto_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = nil
+	File_menu_outbox_v1_hobom_menu_outbox_proto = out.File
+	file_menu_outbox_v1_hobom_menu_outbox_proto_goTypes = nil
+	file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = nil
 }

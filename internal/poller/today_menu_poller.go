@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/proto/menu/outbox/v1"
+	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/menu/outbox/v1"
 	"google.golang.org/grpc"
 )
 
