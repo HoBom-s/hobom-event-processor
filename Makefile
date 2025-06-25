@@ -11,6 +11,7 @@ proto:
 	@command -v buf >/dev/null 2>&1 || { echo >&2 "❌ buf CLI not found. Please install: brew install bufbuild/buf/buf"; exit 1; }
 	@echo "📦 Generating proto files with buf..."
 	cd $(PROTO_DIR) && buf generate
+	@rm -rf ./infra/grpc/main.pb.go
 	@echo "✅ Done!"
 
 run: proto
