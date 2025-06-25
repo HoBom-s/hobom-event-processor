@@ -1,7 +1,7 @@
-PROTO_DIR := ./hobom-buf-proto
+PROTO_DIR := hobom-buf-proto
 PB_DIR := ./infra/grpc
 
-.PHONY: proto run clean
+.PHONY: proto run clean sync-submodule
 
 sync-submodule:
 	@git submodule update --remote --merge $(PROTO_DIR)
@@ -10,7 +10,7 @@ sync-submodule:
 proto:
 	@command -v buf >/dev/null 2>&1 || { echo >&2 "❌ buf CLI not found. Please install: brew install bufbuild/buf/buf"; exit 1; }
 	@echo "📦 Generating proto files with buf..."
-	buf generate $(PROTO_DIR)
+	cd $(PROTO_DIR) && buf generate
 	@echo "✅ Done!"
 
 run: proto
