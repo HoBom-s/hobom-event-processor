@@ -253,6 +253,10 @@ type TodayMenuPayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	TodayMenuId   string                 `protobuf:"bytes,1,opt,name=todayMenuId,proto3" json:"todayMenuId,omitempty"`
 	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
+	Nickname      string                 `protobuf:"bytes,4,opt,name=nickname,proto3" json:"nickname,omitempty"`
+	Email         string                 `protobuf:"bytes,5,opt,name=email,proto3" json:"email,omitempty"`
+	UserId        string                 `protobuf:"bytes,6,opt,name=userId,proto3" json:"userId,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -301,6 +305,34 @@ func (x *TodayMenuPayload) GetName() string {
 	return ""
 }
 
+func (x *TodayMenuPayload) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *TodayMenuPayload) GetNickname() string {
+	if x != nil {
+		return x.Nickname
+	}
+	return ""
+}
+
+func (x *TodayMenuPayload) GetEmail() string {
+	if x != nil {
+		return x.Email
+	}
+	return ""
+}
+
+func (x *TodayMenuPayload) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 var File_menu_outbox_v1_hobom_menu_outbox_proto protoreflect.FileDescriptor
 
 const file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
@@ -326,10 +358,14 @@ const file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
 	"\aversion\x18\n" +
 	" \x01(\x05R\aversion\x12\x1c\n" +
 	"\tcreatedAt\x18\v \x01(\tR\tcreatedAt\x12\x1c\n" +
-	"\tupdatedAt\x18\f \x01(\tR\tupdatedAt\"H\n" +
+	"\tupdatedAt\x18\f \x01(\tR\tupdatedAt\"\xae\x01\n" +
 	"\x10TodayMenuPayload\x12 \n" +
 	"\vtodayMenuId\x18\x01 \x01(\tR\vtodayMenuId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name2k\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\busername\x18\x03 \x01(\tR\busername\x12\x1a\n" +
+	"\bnickname\x18\x04 \x01(\tR\bnickname\x12\x14\n" +
+	"\x05email\x18\x05 \x01(\tR\x05email\x12\x16\n" +
+	"\x06userId\x18\x06 \x01(\tR\x06userId2k\n" +
 	"\x1dFindTodayMenuOutboxController\x12J\n" +
 	"%FindOutboxByEventTypeAndStatusUseCase\x12\x0f.outbox.Request\x1a\x10.outbox.ResponseBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
 
