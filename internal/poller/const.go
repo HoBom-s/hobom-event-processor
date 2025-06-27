@@ -1,11 +1,18 @@
 package poller
 
 const (
-  // Define Kafka Event Type
+  // Define Kafka Event Types
   EventTypeTodayMenu 	= "TODAY_MENU"
 
-  // Outbox Status
+  // Outbox Statuss
   OutboxPending 		= "PENDING"
   OutboxSent    		= "SENT"
   OutboxFailed			= "FAILED"
+
+  // Kafka Topics
+  HoBomMessage     = "hobom.messages"
+
+  // Message Types
+  Mail            = "MAIL_MESSAGE"
+  Push            = "PUSH_MESSAGE"
 )

@@ -2,22 +2,26 @@ package poller
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/menu/outbox/v1"
+	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	"google.golang.org/grpc"
 )
 
 type todayMenuPoller struct {
 	findClient  outboxPb.FindTodayMenuOutboxControllerClient
 	patchClient outboxPb.PatchOutboxControllerClient
+	publisher   publisher.KafkaPublisher
 }
 
-func NewTodayMenuPoller(conn *grpc.ClientConn) Poller {
+func NewTodayMenuPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher) Poller {
 	return &todayMenuPoller{
 		findClient:  outboxPb.NewFindTodayMenuOutboxControllerClient(conn),
 		patchClient: outboxPb.NewPatchOutboxControllerClient(conn),
+		publisher:   publisher,
 	}
 }
 
@@ -38,6 +42,7 @@ func (p *todayMenuPoller) StartPolling(ctx context.Context) {
 }
 
 // gRPC 통신을 통해 for-hobom-backend 서버의 Outbox DB 를 polling 하도록 한다.
+// 오늘의 메뉴를 추천하고, 다른 사용자에게 Message를 전송하기 위한 데이터를 가지고 있다.
 // EventType 이 `TODAY_MENU` 이고, Outbox Status 가 `PENDING` 인 것을 가져오도록 한다.
 func (p *todayMenuPoller) poll(ctx context.Context) {
 	req := &outboxPb.Request{
@@ -47,17 +52,44 @@ func (p *todayMenuPoller) poll(ctx context.Context) {
 
 	res, err := p.findClient.FindOutboxByEventTypeAndStatusUseCase(ctx, req)
 	if err != nil {
+		fmt.Printf("❌ Failed to fetch outbox: %v\n", err)
 		return
 	}
 
 	for _, item := range res.Items {
-		fmt.Printf("📥 Got Outbox ID: %s, Event: %s\n", item.Id, item.EventType)
-
-		if publishToKafka(item) {
-			p.markAsSent(ctx, item.EventId)
-		} else {
-			p.markAsFailed(ctx, item.EventId, "Kafka publish failed")
+		title := fmt.Sprintf("오늘의 추천 메뉴: %s", item.Payload.GetName())
+		body := fmt.Sprintf("%s님이 추천한 메뉴에요.", item.Payload.GetNickname())
+		recipient := item.Payload.GetEmail()
+		senderId := item.Payload.GetUserId()
+		sentAt := time.Now()
+		cmd := DeliverHoBomMessageCommand{
+			Type:      Mail,
+			Title:     title,
+			Body:      body,
+			Recipient: recipient,
+			SenderId:  &senderId,
+			SentAt:    sentAt,
 		}
+		jsonValue, err := json.Marshal(cmd)
+
+		if err != nil {
+			p.markAsFailed(ctx, item.EventId, fmt.Sprintf("❌ Failed to marshal payload to JSON: %v", err))
+			continue
+		}
+
+		err = p.publisher.Publish(ctx, publisher.Event{
+			Key:       	item.EventId,
+			Value:     	jsonValue,
+			Topic:     	HoBomMessage,
+			Timestamp: 	time.Now(),
+		})
+		if err != nil {
+			fmt.Printf("❌ Kafka publish failed: %v\n", err)
+			p.markAsFailed(ctx, item.EventId, fmt.Sprintf("❌ Kafka publish failed: %v", err))
+			continue
+		}
+
+		p.markAsSent(ctx, item.EventId)
 	}
 }
 
@@ -77,11 +109,4 @@ func (p *todayMenuPoller) markAsFailed(ctx context.Context, eventId, reason stri
 		EventId:      eventId,
 		ErrorMessage: reason,
 	})
-}
-
-
-// TODO: Kafka
-func publishToKafka(item *outboxPb.QueryResult) bool {
-	fmt.Printf("🚀 Publishing to Kafka: %s\n", item.EventId)
-	return true
 }

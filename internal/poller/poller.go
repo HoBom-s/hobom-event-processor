@@ -5,6 +5,7 @@ import (
 	"log"
 	"sync"
 
+	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	"google.golang.org/grpc"
 )
 
@@ -15,11 +16,12 @@ type Poller interface {
 
 // 모든 polling 을 초기화 및 수행하도록 한다.
 // gRPC 통신을 위한 초기 로직을 수행하도록 한다.
-func StartAllPollers(ctx context.Context, conn *grpc.ClientConn) {
+// Kafka도 파라미터로 의존성을 주입받아 Event Publishing을 수행하도록 한다.
+func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher) {
 	var wg sync.WaitGroup
 
 	pollers := []Poller{
-		NewTodayMenuPoller(conn),
+		NewTodayMenuPoller(conn, kafkaPublisher),
 	}
 
 	for _, p := range pollers {

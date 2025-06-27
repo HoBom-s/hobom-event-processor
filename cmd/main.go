@@ -5,6 +5,7 @@ import (
 	"log"
 	"net/http"
 
+	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	"github.com/HoBom-s/hobom-event-processor/internal/health"
 	"github.com/HoBom-s/hobom-event-processor/internal/poller"
 	"github.com/gin-gonic/gin"
@@ -23,15 +24,22 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	// 2. Start polling
-	go poller.StartAllPollers(ctx, conn)
+	// 2. KafkaPublisher 생성
+	kafkaCfg := publisher.KafkaConfig{
+		Brokers:      []string{"localhost:9092"},
+		DefaultTopic: "hobom.messages",
+	}
+	kafkaPublisher := publisher.NewKafkaPublisher(kafkaCfg)
+
+	// 3. Start polling
+	go poller.StartAllPollers(ctx, conn, kafkaPublisher)
 	log.Printf("Started Polling...")
 
-	// 3. Start Gin server
+	// 4. Start Gin server
 	router := gin.Default()
 	health.RegisterRoutes(router)
 
-	// 4. Run Gin as HTTP server
+	// 5. Run Gin as HTTP server
 	server := &http.Server{
 		Addr:    ":8081",
 		Handler: router,
