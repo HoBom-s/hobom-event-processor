@@ -20,8 +20,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PatchOutboxController_PatchOutboxMarkAsSentUseCase_FullMethodName   = "/outbox.PatchOutboxController/PatchOutboxMarkAsSentUseCase"
-	PatchOutboxController_PatchOutboxMarkAsFailedUseCase_FullMethodName = "/outbox.PatchOutboxController/PatchOutboxMarkAsFailedUseCase"
+	PatchOutboxController_PatchOutboxMarkAsSentUseCase_FullMethodName   = "/outbox.menu.PatchOutboxController/PatchOutboxMarkAsSentUseCase"
+	PatchOutboxController_PatchOutboxMarkAsFailedUseCase_FullMethodName = "/outbox.menu.PatchOutboxController/PatchOutboxMarkAsFailedUseCase"
 )
 
 // PatchOutboxControllerClient is the client API for PatchOutboxController service.
@@ -143,7 +143,7 @@ func _PatchOutboxController_PatchOutboxMarkAsFailedUseCase_Handler(srv interface
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PatchOutboxController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "outbox.PatchOutboxController",
+	ServiceName: "outbox.menu.PatchOutboxController",
 	HandlerType: (*PatchOutboxControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

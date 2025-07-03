@@ -337,17 +337,17 @@ var File_menu_outbox_v1_hobom_menu_outbox_proto protoreflect.FileDescriptor
 
 const file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
 	"\n" +
-	"&menu/outbox/v1/hobom-menu-outbox.proto\x12\x06outbox\"?\n" +
+	"&menu/outbox/v1/hobom-menu-outbox.proto\x12\voutbox.menu\"?\n" +
 	"\aRequest\x12\x1c\n" +
 	"\teventType\x18\x01 \x01(\tR\teventType\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\"5\n" +
-	"\bResponse\x12)\n" +
-	"\x05items\x18\x01 \x03(\v2\x13.outbox.QueryResultR\x05items\"\xe9\x02\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\":\n" +
+	"\bResponse\x12.\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.outbox.menu.QueryResultR\x05items\"\xee\x02\n" +
 	"\vQueryResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aeventId\x18\x02 \x01(\tR\aeventId\x12\x1c\n" +
-	"\teventType\x18\x03 \x01(\tR\teventType\x122\n" +
-	"\apayload\x18\x04 \x01(\v2\x18.outbox.TodayMenuPayloadR\apayload\x12\x16\n" +
+	"\teventType\x18\x03 \x01(\tR\teventType\x127\n" +
+	"\apayload\x18\x04 \x01(\v2\x1d.outbox.menu.TodayMenuPayloadR\apayload\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1e\n" +
 	"\n" +
 	"retryCount\x18\x06 \x01(\x05R\n" +
@@ -365,9 +365,9 @@ const file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
 	"\busername\x18\x03 \x01(\tR\busername\x12\x1a\n" +
 	"\bnickname\x18\x04 \x01(\tR\bnickname\x12\x14\n" +
 	"\x05email\x18\x05 \x01(\tR\x05email\x12\x16\n" +
-	"\x06userId\x18\x06 \x01(\tR\x06userId2k\n" +
-	"\x1dFindTodayMenuOutboxController\x12J\n" +
-	"%FindOutboxByEventTypeAndStatusUseCase\x12\x0f.outbox.Request\x1a\x10.outbox.ResponseBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
+	"\x06userId\x18\x06 \x01(\tR\x06userId2u\n" +
+	"\x1dFindTodayMenuOutboxController\x12T\n" +
+	"%FindOutboxByEventTypeAndStatusUseCase\x12\x14.outbox.menu.Request\x1a\x15.outbox.menu.ResponseBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
 
 var (
 	file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescOnce sync.Once
@@ -383,16 +383,16 @@ func file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP() []byte {
 
 var file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_menu_outbox_v1_hobom_menu_outbox_proto_goTypes = []any{
-	(*Request)(nil),          // 0: outbox.Request
-	(*Response)(nil),         // 1: outbox.Response
-	(*QueryResult)(nil),      // 2: outbox.QueryResult
-	(*TodayMenuPayload)(nil), // 3: outbox.TodayMenuPayload
+	(*Request)(nil),          // 0: outbox.menu.Request
+	(*Response)(nil),         // 1: outbox.menu.Response
+	(*QueryResult)(nil),      // 2: outbox.menu.QueryResult
+	(*TodayMenuPayload)(nil), // 3: outbox.menu.TodayMenuPayload
 }
 var file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = []int32{
-	2, // 0: outbox.Response.items:type_name -> outbox.QueryResult
-	3, // 1: outbox.QueryResult.payload:type_name -> outbox.TodayMenuPayload
-	0, // 2: outbox.FindTodayMenuOutboxController.FindOutboxByEventTypeAndStatusUseCase:input_type -> outbox.Request
-	1, // 3: outbox.FindTodayMenuOutboxController.FindOutboxByEventTypeAndStatusUseCase:output_type -> outbox.Response
+	2, // 0: outbox.menu.Response.items:type_name -> outbox.menu.QueryResult
+	3, // 1: outbox.menu.QueryResult.payload:type_name -> outbox.menu.TodayMenuPayload
+	0, // 2: outbox.menu.FindTodayMenuOutboxController.FindOutboxByEventTypeAndStatusUseCase:input_type -> outbox.menu.Request
+	1, // 3: outbox.menu.FindTodayMenuOutboxController.FindOutboxByEventTypeAndStatusUseCase:output_type -> outbox.menu.Response
 	3, // [3:4] is the sub-list for method output_type
 	2, // [2:3] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
