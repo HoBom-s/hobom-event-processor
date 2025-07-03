@@ -19,7 +19,7 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	FindTodayMenuOutboxController_FindOutboxByEventTypeAndStatusUseCase_FullMethodName = "/outbox.FindTodayMenuOutboxController/FindOutboxByEventTypeAndStatusUseCase"
+	FindTodayMenuOutboxController_FindOutboxByEventTypeAndStatusUseCase_FullMethodName = "/outbox.menu.FindTodayMenuOutboxController/FindOutboxByEventTypeAndStatusUseCase"
 )
 
 // FindTodayMenuOutboxControllerClient is the client API for FindTodayMenuOutboxController service.
@@ -109,7 +109,7 @@ func _FindTodayMenuOutboxController_FindOutboxByEventTypeAndStatusUseCase_Handle
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var FindTodayMenuOutboxController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "outbox.FindTodayMenuOutboxController",
+	ServiceName: "outbox.menu.FindTodayMenuOutboxController",
 	HandlerType: (*FindTodayMenuOutboxControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{

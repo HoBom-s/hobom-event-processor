@@ -22,6 +22,7 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, kafkaPublisher 
 
 	pollers := []Poller{
 		NewTodayMenuPoller(conn, kafkaPublisher),
+		NewLogPoller(conn, kafkaPublisher),
 	}
 
 	for _, p := range pollers {

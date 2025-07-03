@@ -22,7 +22,6 @@ func NewKafkaPublisher(cfg KafkaConfig, hooks ...Hook) KafkaPublisher {
 	writer := &kafkaWriterImpl{
 		Writer: &kafka.Writer{
 			Addr:         kafka.TCP(cfg.Brokers...),
-			Topic:        cfg.DefaultTopic,
 			Balancer:     cfg.Balancer,
 			WriteTimeout: cfg.Timeout,
 			RequiredAcks: cfg.Acks,
@@ -48,6 +47,7 @@ func (p *kafkaPublisher) Publish(ctx context.Context, event Event) error {
 		Value:     event.Value,
 		Headers:   event.Headers,
 		Time:      event.Timestamp,
+		Topic:     event.Topic,
 	}
 
 	err := p.writer.WriteMessages(ctx, msg)

@@ -122,15 +122,15 @@ var File_menu_outbox_v1_patch_hobom_menu_outbox_proto protoreflect.FileDescripto
 
 const file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDesc = "" +
 	"\n" +
-	",menu/outbox/v1/patch-hobom-menu-outbox.proto\x12\x06outbox\x1a\x1bgoogle/protobuf/empty.proto\"'\n" +
+	",menu/outbox/v1/patch-hobom-menu-outbox.proto\x12\voutbox.menu\x1a\x1bgoogle/protobuf/empty.proto\"'\n" +
 	"\vMarkRequest\x12\x18\n" +
 	"\aeventId\x18\x01 \x01(\tR\aeventId\"Q\n" +
 	"\x11MarkFailedRequest\x12\x18\n" +
 	"\aeventId\x18\x01 \x01(\tR\aeventId\x12\"\n" +
-	"\ferrorMessage\x18\x02 \x01(\tR\ferrorMessage2\xb9\x01\n" +
-	"\x15PatchOutboxController\x12K\n" +
-	"\x1cPatchOutboxMarkAsSentUseCase\x12\x13.outbox.MarkRequest\x1a\x16.google.protobuf.Empty\x12S\n" +
-	"\x1ePatchOutboxMarkAsFailedUseCase\x12\x19.outbox.MarkFailedRequest\x1a\x16.google.protobuf.EmptyBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
+	"\ferrorMessage\x18\x02 \x01(\tR\ferrorMessage2\xc3\x01\n" +
+	"\x15PatchOutboxController\x12P\n" +
+	"\x1cPatchOutboxMarkAsSentUseCase\x12\x18.outbox.menu.MarkRequest\x1a\x16.google.protobuf.Empty\x12X\n" +
+	"\x1ePatchOutboxMarkAsFailedUseCase\x12\x1e.outbox.menu.MarkFailedRequest\x1a\x16.google.protobuf.EmptyBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
 
 var (
 	file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescOnce sync.Once
@@ -146,15 +146,15 @@ func file_menu_outbox_v1_patch_hobom_menu_outbox_proto_rawDescGZIP() []byte {
 
 var file_menu_outbox_v1_patch_hobom_menu_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_menu_outbox_v1_patch_hobom_menu_outbox_proto_goTypes = []any{
-	(*MarkRequest)(nil),       // 0: outbox.MarkRequest
-	(*MarkFailedRequest)(nil), // 1: outbox.MarkFailedRequest
+	(*MarkRequest)(nil),       // 0: outbox.menu.MarkRequest
+	(*MarkFailedRequest)(nil), // 1: outbox.menu.MarkFailedRequest
 	(*emptypb.Empty)(nil),     // 2: google.protobuf.Empty
 }
 var file_menu_outbox_v1_patch_hobom_menu_outbox_proto_depIdxs = []int32{
-	0, // 0: outbox.PatchOutboxController.PatchOutboxMarkAsSentUseCase:input_type -> outbox.MarkRequest
-	1, // 1: outbox.PatchOutboxController.PatchOutboxMarkAsFailedUseCase:input_type -> outbox.MarkFailedRequest
-	2, // 2: outbox.PatchOutboxController.PatchOutboxMarkAsSentUseCase:output_type -> google.protobuf.Empty
-	2, // 3: outbox.PatchOutboxController.PatchOutboxMarkAsFailedUseCase:output_type -> google.protobuf.Empty
+	0, // 0: outbox.menu.PatchOutboxController.PatchOutboxMarkAsSentUseCase:input_type -> outbox.menu.MarkRequest
+	1, // 1: outbox.menu.PatchOutboxController.PatchOutboxMarkAsFailedUseCase:input_type -> outbox.menu.MarkFailedRequest
+	2, // 2: outbox.menu.PatchOutboxController.PatchOutboxMarkAsSentUseCase:output_type -> google.protobuf.Empty
+	2, // 3: outbox.menu.PatchOutboxController.PatchOutboxMarkAsFailedUseCase:output_type -> google.protobuf.Empty
 	2, // [2:4] is the sub-list for method output_type
 	0, // [0:2] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name

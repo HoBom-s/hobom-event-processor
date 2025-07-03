@@ -8,7 +8,6 @@ import (
 
 type KafkaConfig struct {
 	Brokers      []string
-	DefaultTopic string
 	Timeout      time.Duration
 	Acks         kafka.RequiredAcks
 	Balancer     kafka.Balancer

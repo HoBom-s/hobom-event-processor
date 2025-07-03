@@ -27,7 +27,6 @@ func main() {
 	// 2. KafkaPublisher 생성
 	kafkaCfg := publisher.KafkaConfig{
 		Brokers:      []string{"localhost:9092"},
-		DefaultTopic: "hobom.messages",
 	}
 	kafkaPublisher := publisher.NewKafkaPublisher(kafkaCfg)
 

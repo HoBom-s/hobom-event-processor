@@ -3,6 +3,7 @@ package poller
 const (
   // Define Kafka Event Types
   EventTypeTodayMenu 	= "TODAY_MENU"
+  EventTypeHoBomLog   = "HOBOM_LOG"
 
   // Outbox Statuss
   OutboxPending 		= "PENDING"
@@ -11,6 +12,7 @@ const (
 
   // Kafka Topics
   HoBomMessage     = "hobom.messages"
+  HoBomLog         = "hobom.logs"
 
   // Message Types
   Mail            = "MAIL_MESSAGE"
