@@ -123,14 +123,9 @@ func (p *logPoller) poll(ctx context.Context) {
 // Outbox DB 에 `SENT` 상태로 업데이트를 한다.
 func (p *logPoller) markAsSent(ctx context.Context, eventId string) {
 	fmt.Printf("📥 Marking as SENT: %s\n", eventId)
-
-	_, err := p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxMenuPb.MarkRequest{
+	p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxMenuPb.MarkRequest{
 		EventId: eventId,
 	})
-
-	if err != nil {
-		fmt.Printf("❌ Failed to mark as SENT: %v\n", err)
-	}
 }
 
 // gRPC 통신을 통해, for-hobo-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
