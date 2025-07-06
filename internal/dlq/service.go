@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/menu/outbox/v1"
 	"github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	"github.com/HoBom-s/hobom-event-processor/infra/redis"
 	"github.com/HoBom-s/hobom-event-processor/pkg/utils"
@@ -13,13 +14,15 @@ import (
 type DLQService struct {
 	RedisDLQ  *redis.RedisDLQStore
 	Publisher publisher.KafkaPublisher
+	PatchClient outboxPb.PatchOutboxControllerClient
 }
 
 // DLQ Service를 초기화 하도록 한다.
-func NewService(redis *redis.RedisDLQStore, pub publisher.KafkaPublisher) *DLQService {
+func NewService(redis *redis.RedisDLQStore, pub publisher.KafkaPublisher, patchClient outboxPb.PatchOutboxControllerClient) *DLQService {
 	return &DLQService{
 		RedisDLQ:  redis,
 		Publisher: pub,
+		PatchClient: patchClient,
 	}
 }
 
@@ -65,6 +68,20 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	})
 	if err != nil {
 		return fmt.Errorf("failed to publish: %w", err)
+	}
+
+	// Key로부터 EventID를 추출한 후,
+	// gRPC 호출을 통해, Outbox에 발행 상태를 `SENT`로 업데이트 시키도록 한다.
+	// 만약 EventID가 존재하지 않는다면 다음 로직을 수행하지 않도록 한다.
+	eventId := extractEventIdFromKey(key)
+	if utils.IsEmptyString(eventId) {
+		return fmt.Errorf("invalid DLQ key format, cannot extract event ID from: %s", key)
+	}
+	if _, err := s.PatchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
+		EventId: eventId,
+	}); err != nil {
+		fmt.Printf("⚠️ Failed to mark as SENT after retry: %v\n", err)
+		return err
 	}
 
 	// DLQ를 제거하도록 한다.

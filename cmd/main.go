@@ -56,7 +56,7 @@ func main() {
 	// 5-1. DLQ Router
 	router := gin.Default()
 	health.RegisterRoutes(router)
-	dlq.RegisterRoutes(router, rc, kafkaPublisher)
+	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn)
 	server := &http.Server{
 		Addr:    ":8081",
 		Handler: router,
