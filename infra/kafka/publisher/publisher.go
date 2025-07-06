@@ -2,8 +2,8 @@ package publisher
 
 import (
 	"context"
+	"fmt"
 
-	utils "github.com/HoBom-s/hobom-event-processor/internal/utils"
 	"github.com/segmentio/kafka-go"
 )
 
@@ -22,12 +22,12 @@ func NewKafkaPublisher(cfg KafkaConfig, hooks ...Hook) KafkaPublisher {
 	writer := &kafkaWriterImpl{
 		Writer: &kafka.Writer{
 			Addr:         kafka.TCP(cfg.Brokers...),
-			Topic:        cfg.DefaultTopic,
 			Balancer:     cfg.Balancer,
 			WriteTimeout: cfg.Timeout,
 			RequiredAcks: cfg.Acks,
 		},
 	}
+	fmt.Println("🎃 Kafka connected")
 
 	return &kafkaPublisher{
 		cfg:    cfg,
@@ -41,17 +41,13 @@ func (p *kafkaPublisher) Publish(ctx context.Context, event Event) error {
 		hook.BeforePublish(ctx, event)
 	}
 
-	topic := event.Topic
-	if utils.IsEmptyString(topic) {
-		topic = p.cfg.DefaultTopic
-	}
 
 	msg := kafka.Message{
 		Key:       []byte(event.Key),
 		Value:     event.Value,
 		Headers:   event.Headers,
 		Time:      event.Timestamp,
-		Topic:     topic,
+		Topic:     event.Topic,
 	}
 
 	err := p.writer.WriteMessages(ctx, msg)

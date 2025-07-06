@@ -1,0 +1,27 @@
+name: Check proto changes
+
+on:
+  pull_request:
+    paths:
+      - "hobom-buf-proto/**"
+
+jobs:
+  prevent-proto-edit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+
+      - name: Check if proto files were modified
+        run: |
+          CHANGED=$(git diff --name-only origin/main | grep '^hobom-buf-proto/')
+          if [ ! -z "$CHANGED" ]; then
+            echo "❌ .proto files in /hobom-buf-proto were modified. Please edit them only in the central buf repo."
+            echo "Changed files:"
+            echo "$CHANGED"
+            exit 1
+          else
+            echo "✅ No unauthorized proto changes detected."
+          fi
