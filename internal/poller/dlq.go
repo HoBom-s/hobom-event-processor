@@ -3,12 +3,9 @@ package poller
 import (
 	"context"
 	"fmt"
-	"time"
 
 	redisClient "github.com/HoBom-s/hobom-event-processor/infra/redis"
 )
-
-const TTL72Hours = 72 * time.Hour
 
 // Redis에 DLQ를 저장하도록 한다.
 // TTL: 72 시간, Key: dlq:[category]:[event-id], Payload: JsonValue

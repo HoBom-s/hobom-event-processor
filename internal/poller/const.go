@@ -1,5 +1,7 @@
 package poller
 
+import "time"
+
 const (
   // Define Kafka Event Types
   EventTypeTodayMenu 	= "TODAY_MENU"
@@ -21,4 +23,6 @@ const (
   // DLQ Keys
   HoBomTodayMenuDLQPrefix    = "dlq:menu:"
   HoBomLogDLQPrefix          = "dlq:log:"
+
+  TTL72Hours                 = 72 * time.Hour
 )
