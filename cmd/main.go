@@ -6,9 +6,11 @@ import (
 	"net/http"
 
 	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
+	redisClient "github.com/HoBom-s/hobom-event-processor/infra/redis"
 	"github.com/HoBom-s/hobom-event-processor/internal/health"
 	"github.com/HoBom-s/hobom-event-processor/internal/poller"
 	"github.com/gin-gonic/gin"
+	redis "github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 )
@@ -30,15 +32,24 @@ func main() {
 	}
 	kafkaPublisher := publisher.NewKafkaPublisher(kafkaCfg)
 
-	// 3. Start polling
-	go poller.StartAllPollers(ctx, conn, kafkaPublisher)
+	// 3. RedisClient 생성
+	rc := redisClient.NewRedisDLQStore(
+			redis.NewClient(&redis.Options{
+			Addr: 		"localhost:6379",
+			Password: 	"",
+			DB: 		0,
+		}),
+	)
+
+	// 4. Start polling
+	go poller.StartAllPollers(ctx, conn, kafkaPublisher, rc)
 	log.Printf("Started Polling...")
 
-	// 4. Start Gin server
+	// 5. Start Gin server
 	router := gin.Default()
 	health.RegisterRoutes(router)
 
-	// 5. Run Gin as HTTP server
+	// 6. Run Gin as HTTP server
 	server := &http.Server{
 		Addr:    ":8081",
 		Handler: router,

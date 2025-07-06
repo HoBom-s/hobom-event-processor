@@ -17,6 +17,8 @@ services:
       - 9092:9092 # host(9092) : docker container (9092)
     depends_on:
       - zookeeper
+    volumes:
+      - kafka-data:/var/lib/kafka/data
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
@@ -24,3 +26,5 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+volumes:
+  kafka-data:

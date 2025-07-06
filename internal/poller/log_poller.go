@@ -9,6 +9,7 @@ import (
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/log/outbox/v1"
 	outboxMenuPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/menu/outbox/v1"
 	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
+	redisClient "github.com/HoBom-s/hobom-event-processor/infra/redis"
 	"google.golang.org/grpc"
 )
 
@@ -16,13 +17,15 @@ type logPoller struct {
 	findClient	outboxPb.FindHoBomLogOutboxControllerClient
 	patchClient outboxMenuPb.PatchOutboxControllerClient
 	publisher   publisher.KafkaPublisher
+	redisDLQ 	*redisClient.RedisDLQStore
 }
 
-func NewLogPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher) Poller {
+func NewLogPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, redisDLQ *redisClient.RedisDLQStore) Poller {
 	return &logPoller{
 		findClient: outboxPb.NewFindHoBomLogOutboxControllerClient(conn),
 		patchClient: outboxMenuPb.NewPatchOutboxControllerClient(conn),
 		publisher:   publisher,
+		redisDLQ:	 redisDLQ,
 	}
 }
 
@@ -86,6 +89,8 @@ func (p *logPoller) poll(ctx context.Context) {
 		eventIds = append(eventIds, item.EventId)
 	}
 
+	// Event를 발행할 Commands (Log)의 길이가 0 일 경우, 아무런 동작도
+	// 수행하지 않도록 한다.
 	if len(commands) == 0 {
 		return
 	}
@@ -105,15 +110,18 @@ func (p *logPoller) poll(ctx context.Context) {
 		Topic:     HoBomLog,
 		Timestamp: time.Now(),
 	})
+	// Kafka Event발행에 실패했을 경우, gRPC를 통해 Outbox 데이터를 Fail 로 업데이트 하도록 한다.
+	// 그 후, Redis에 DLQ Event를 저장하도록 한다.
 	if err != nil {
 		fmt.Printf("❌ Kafka publish failed: %v\n", err)
 		for _, id := range eventIds {
 			p.markAsFailed(ctx, id, fmt.Sprintf("publish error: %v", err))
+			saveDLQ(p.redisDLQ, ctx, HoBomLogDLQPrefix, id, jsonArray)
 		}
 		return
 	}
 
-	// mark as SENT only after successful publish
+	// Mark as SENT only after successful publish
 	for _, id := range eventIds {
 		p.markAsSent(ctx, id)
 	}
@@ -135,17 +143,4 @@ func (p *logPoller) markAsFailed(ctx context.Context, eventId, reason string) {
 		EventId:      eventId,
 		ErrorMessage: reason,
 	})
-}
-
-func structToMap(v interface{}) (map[string]interface{}, error) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-	var result map[string]interface{}
-	err = json.Unmarshal(data, &result)
-	if err != nil {
-		return nil, err
-	}
-	return result, nil
 }

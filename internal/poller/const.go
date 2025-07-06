@@ -17,4 +17,8 @@ const (
   // Message Types
   Mail            = "MAIL_MESSAGE"
   Push            = "PUSH_MESSAGE"
+
+  // DLQ Keys
+  HoBomTodayMenuDLQPrefix    = "dlq:menu:"
+  HoBomLogDLQPrefix          = "dlq:log:"
 )

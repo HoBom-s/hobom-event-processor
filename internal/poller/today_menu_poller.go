@@ -8,6 +8,7 @@ import (
 
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/menu/outbox/v1"
 	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
+	redisClient "github.com/HoBom-s/hobom-event-processor/infra/redis"
 	"google.golang.org/grpc"
 )
 
@@ -15,13 +16,15 @@ type todayMenuPoller struct {
 	findClient  outboxPb.FindTodayMenuOutboxControllerClient
 	patchClient outboxPb.PatchOutboxControllerClient
 	publisher   publisher.KafkaPublisher
+	redisDLQ 	*redisClient.RedisDLQStore
 }
 
-func NewTodayMenuPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher) Poller {
+func NewTodayMenuPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, redisDLQ *redisClient.RedisDLQStore) Poller {
 	return &todayMenuPoller{
 		findClient:  outboxPb.NewFindTodayMenuOutboxControllerClient(conn),
 		patchClient: outboxPb.NewPatchOutboxControllerClient(conn),
 		publisher:   publisher,
+		redisDLQ:	 redisDLQ,
 	}
 }
 
@@ -83,9 +86,12 @@ func (p *todayMenuPoller) poll(ctx context.Context) {
 			Topic:     	HoBomMessage,
 			Timestamp: 	time.Now(),
 		})
+		// Kafka Event발행에 실패했을 경우, gRPC를 통해 Outbox 데이터를 Fail로 업데이트 하도록 한다.
+		// Redis에 DLQ Event를 저장하도록 한다.
 		if err != nil {
 			fmt.Printf("❌ Kafka publish failed: %v\n", err)
 			p.markAsFailed(ctx, item.EventId, fmt.Sprintf("❌ Kafka publish failed: %v", err))
+			saveDLQ(p.redisDLQ, ctx, HoBomTodayMenuDLQPrefix, item.EventId, jsonValue)
 			continue
 		}
 
