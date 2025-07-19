@@ -22,7 +22,7 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, kafkaPublisher 
 	var wg sync.WaitGroup
 
 	pollers := []Poller{
-		NewTodayMenuPoller(conn, kafkaPublisher, redisClient),
+		NewMessagePoller(conn, kafkaPublisher, redisClient),
 		NewLogPoller(conn, kafkaPublisher, redisClient),
 	}
 

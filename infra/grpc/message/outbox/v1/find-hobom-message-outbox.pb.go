@@ -2,9 +2,9 @@
 // versions:
 // 	protoc-gen-go v1.36.6
 // 	protoc        (unknown)
-// source: menu/outbox/v1/hobom-menu-outbox.proto
+// source: message/outbox/v1/find-hobom-message-outbox.proto
 
-package hobommenupb
+package hobommessagepb
 
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
@@ -31,7 +31,7 @@ type Request struct {
 
 func (x *Request) Reset() {
 	*x = Request{}
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[0]
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -43,7 +43,7 @@ func (x *Request) String() string {
 func (*Request) ProtoMessage() {}
 
 func (x *Request) ProtoReflect() protoreflect.Message {
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[0]
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -56,7 +56,7 @@ func (x *Request) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Request.ProtoReflect.Descriptor instead.
 func (*Request) Descriptor() ([]byte, []int) {
-	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{0}
+	return file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescGZIP(), []int{0}
 }
 
 func (x *Request) GetEventType() string {
@@ -82,7 +82,7 @@ type Response struct {
 
 func (x *Response) Reset() {
 	*x = Response{}
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[1]
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[1]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -94,7 +94,7 @@ func (x *Response) String() string {
 func (*Response) ProtoMessage() {}
 
 func (x *Response) ProtoReflect() protoreflect.Message {
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[1]
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[1]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -107,7 +107,7 @@ func (x *Response) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Response.ProtoReflect.Descriptor instead.
 func (*Response) Descriptor() ([]byte, []int) {
-	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{1}
+	return file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescGZIP(), []int{1}
 }
 
 func (x *Response) GetItems() []*QueryResult {
@@ -122,7 +122,7 @@ type QueryResult struct {
 	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	EventId       string                 `protobuf:"bytes,2,opt,name=eventId,proto3" json:"eventId,omitempty"`
 	EventType     string                 `protobuf:"bytes,3,opt,name=eventType,proto3" json:"eventType,omitempty"`
-	Payload       *TodayMenuPayload      `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
+	Payload       *MessagePayload        `protobuf:"bytes,4,opt,name=payload,proto3" json:"payload,omitempty"`
 	Status        string                 `protobuf:"bytes,5,opt,name=status,proto3" json:"status,omitempty"`
 	RetryCount    int32                  `protobuf:"varint,6,opt,name=retryCount,proto3" json:"retryCount,omitempty"`
 	SentAt        string                 `protobuf:"bytes,7,opt,name=sentAt,proto3" json:"sentAt,omitempty"`
@@ -137,7 +137,7 @@ type QueryResult struct {
 
 func (x *QueryResult) Reset() {
 	*x = QueryResult{}
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[2]
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -149,7 +149,7 @@ func (x *QueryResult) String() string {
 func (*QueryResult) ProtoMessage() {}
 
 func (x *QueryResult) ProtoReflect() protoreflect.Message {
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[2]
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -162,7 +162,7 @@ func (x *QueryResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QueryResult.ProtoReflect.Descriptor instead.
 func (*QueryResult) Descriptor() ([]byte, []int) {
-	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{2}
+	return file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *QueryResult) GetId() string {
@@ -186,7 +186,7 @@ func (x *QueryResult) GetEventType() string {
 	return ""
 }
 
-func (x *QueryResult) GetPayload() *TodayMenuPayload {
+func (x *QueryResult) GetPayload() *MessagePayload {
 	if x != nil {
 		return x.Payload
 	}
@@ -249,33 +249,33 @@ func (x *QueryResult) GetUpdatedAt() string {
 	return ""
 }
 
-type TodayMenuPayload struct {
+type MessagePayload struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
-	TodayMenuId   string                 `protobuf:"bytes,1,opt,name=todayMenuId,proto3" json:"todayMenuId,omitempty"`
-	Name          string                 `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
-	Username      string                 `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
-	Nickname      string                 `protobuf:"bytes,4,opt,name=nickname,proto3" json:"nickname,omitempty"`
-	Email         string                 `protobuf:"bytes,5,opt,name=email,proto3" json:"email,omitempty"`
-	UserId        string                 `protobuf:"bytes,6,opt,name=userId,proto3" json:"userId,omitempty"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`
+	Recipient     string                 `protobuf:"bytes,4,opt,name=recipient,proto3" json:"recipient,omitempty"`
+	SenderId      string                 `protobuf:"bytes,5,opt,name=senderId,proto3" json:"senderId,omitempty"`
+	Type          string                 `protobuf:"bytes,6,opt,name=type,proto3" json:"type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *TodayMenuPayload) Reset() {
-	*x = TodayMenuPayload{}
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[3]
+func (x *MessagePayload) Reset() {
+	*x = MessagePayload{}
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *TodayMenuPayload) String() string {
+func (x *MessagePayload) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*TodayMenuPayload) ProtoMessage() {}
+func (*MessagePayload) ProtoMessage() {}
 
-func (x *TodayMenuPayload) ProtoReflect() protoreflect.Message {
-	mi := &file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes[3]
+func (x *MessagePayload) ProtoReflect() protoreflect.Message {
+	mi := &file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -286,68 +286,68 @@ func (x *TodayMenuPayload) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use TodayMenuPayload.ProtoReflect.Descriptor instead.
-func (*TodayMenuPayload) Descriptor() ([]byte, []int) {
-	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP(), []int{3}
+// Deprecated: Use MessagePayload.ProtoReflect.Descriptor instead.
+func (*MessagePayload) Descriptor() ([]byte, []int) {
+	return file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescGZIP(), []int{3}
 }
 
-func (x *TodayMenuPayload) GetTodayMenuId() string {
+func (x *MessagePayload) GetId() string {
 	if x != nil {
-		return x.TodayMenuId
+		return x.Id
 	}
 	return ""
 }
 
-func (x *TodayMenuPayload) GetName() string {
+func (x *MessagePayload) GetTitle() string {
 	if x != nil {
-		return x.Name
+		return x.Title
 	}
 	return ""
 }
 
-func (x *TodayMenuPayload) GetUsername() string {
+func (x *MessagePayload) GetBody() string {
 	if x != nil {
-		return x.Username
+		return x.Body
 	}
 	return ""
 }
 
-func (x *TodayMenuPayload) GetNickname() string {
+func (x *MessagePayload) GetRecipient() string {
 	if x != nil {
-		return x.Nickname
+		return x.Recipient
 	}
 	return ""
 }
 
-func (x *TodayMenuPayload) GetEmail() string {
+func (x *MessagePayload) GetSenderId() string {
 	if x != nil {
-		return x.Email
+		return x.SenderId
 	}
 	return ""
 }
 
-func (x *TodayMenuPayload) GetUserId() string {
+func (x *MessagePayload) GetType() string {
 	if x != nil {
-		return x.UserId
+		return x.Type
 	}
 	return ""
 }
 
-var File_menu_outbox_v1_hobom_menu_outbox_proto protoreflect.FileDescriptor
+var File_message_outbox_v1_find_hobom_message_outbox_proto protoreflect.FileDescriptor
 
-const file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
+const file_message_outbox_v1_find_hobom_message_outbox_proto_rawDesc = "" +
 	"\n" +
-	"&menu/outbox/v1/hobom-menu-outbox.proto\x12\voutbox.menu\"?\n" +
+	"1message/outbox/v1/find-hobom-message-outbox.proto\x12\x0eoutbox.message\"?\n" +
 	"\aRequest\x12\x1c\n" +
 	"\teventType\x18\x01 \x01(\tR\teventType\x12\x16\n" +
-	"\x06status\x18\x02 \x01(\tR\x06status\":\n" +
-	"\bResponse\x12.\n" +
-	"\x05items\x18\x01 \x03(\v2\x18.outbox.menu.QueryResultR\x05items\"\xee\x02\n" +
+	"\x06status\x18\x02 \x01(\tR\x06status\"=\n" +
+	"\bResponse\x121\n" +
+	"\x05items\x18\x01 \x03(\v2\x1b.outbox.message.QueryResultR\x05items\"\xef\x02\n" +
 	"\vQueryResult\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x18\n" +
 	"\aeventId\x18\x02 \x01(\tR\aeventId\x12\x1c\n" +
-	"\teventType\x18\x03 \x01(\tR\teventType\x127\n" +
-	"\apayload\x18\x04 \x01(\v2\x1d.outbox.menu.TodayMenuPayloadR\apayload\x12\x16\n" +
+	"\teventType\x18\x03 \x01(\tR\teventType\x128\n" +
+	"\apayload\x18\x04 \x01(\v2\x1e.outbox.message.MessagePayloadR\apayload\x12\x16\n" +
 	"\x06status\x18\x05 \x01(\tR\x06status\x12\x1e\n" +
 	"\n" +
 	"retryCount\x18\x06 \x01(\x05R\n" +
@@ -358,41 +358,41 @@ const file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc = "" +
 	"\aversion\x18\n" +
 	" \x01(\x05R\aversion\x12\x1c\n" +
 	"\tcreatedAt\x18\v \x01(\tR\tcreatedAt\x12\x1c\n" +
-	"\tupdatedAt\x18\f \x01(\tR\tupdatedAt\"\xae\x01\n" +
-	"\x10TodayMenuPayload\x12 \n" +
-	"\vtodayMenuId\x18\x01 \x01(\tR\vtodayMenuId\x12\x12\n" +
-	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
-	"\busername\x18\x03 \x01(\tR\busername\x12\x1a\n" +
-	"\bnickname\x18\x04 \x01(\tR\bnickname\x12\x14\n" +
-	"\x05email\x18\x05 \x01(\tR\x05email\x12\x16\n" +
-	"\x06userId\x18\x06 \x01(\tR\x06userId2u\n" +
-	"\x1dFindTodayMenuOutboxController\x12T\n" +
-	"%FindOutboxByEventTypeAndStatusUseCase\x12\x14.outbox.menu.Request\x1a\x15.outbox.menu.ResponseBVZTgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-menu-outbox;hobommenupbb\x06proto3"
+	"\tupdatedAt\x18\f \x01(\tR\tupdatedAt\"\x98\x01\n" +
+	"\x0eMessagePayload\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x12\n" +
+	"\x04body\x18\x03 \x01(\tR\x04body\x12\x1c\n" +
+	"\trecipient\x18\x04 \x01(\tR\trecipient\x12\x1a\n" +
+	"\bsenderId\x18\x05 \x01(\tR\bsenderId\x12\x12\n" +
+	"\x04type\x18\x06 \x01(\tR\x04type2~\n" +
+	" FindHoBomMessageOutboxController\x12Z\n" +
+	"%FindOutboxByEventTypeAndStatusUseCase\x12\x17.outbox.message.Request\x1a\x18.outbox.message.ResponseB\\ZZgithub.com/HoBom-s/hobom-event-processor/infra/grpc/v1/hobom-message-outbox;hobommessagepbb\x06proto3"
 
 var (
-	file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescOnce sync.Once
-	file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData []byte
+	file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescOnce sync.Once
+	file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescData []byte
 )
 
-func file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescGZIP() []byte {
-	file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescOnce.Do(func() {
-		file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc), len(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc)))
+func file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescGZIP() []byte {
+	file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescOnce.Do(func() {
+		file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescData = protoimpl.X.CompressGZIP(unsafe.Slice(unsafe.StringData(file_message_outbox_v1_find_hobom_message_outbox_proto_rawDesc), len(file_message_outbox_v1_find_hobom_message_outbox_proto_rawDesc)))
 	})
-	return file_menu_outbox_v1_hobom_menu_outbox_proto_rawDescData
+	return file_message_outbox_v1_find_hobom_message_outbox_proto_rawDescData
 }
 
-var file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
-var file_menu_outbox_v1_hobom_menu_outbox_proto_goTypes = []any{
-	(*Request)(nil),          // 0: outbox.menu.Request
-	(*Response)(nil),         // 1: outbox.menu.Response
-	(*QueryResult)(nil),      // 2: outbox.menu.QueryResult
-	(*TodayMenuPayload)(nil), // 3: outbox.menu.TodayMenuPayload
+var file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_message_outbox_v1_find_hobom_message_outbox_proto_goTypes = []any{
+	(*Request)(nil),        // 0: outbox.message.Request
+	(*Response)(nil),       // 1: outbox.message.Response
+	(*QueryResult)(nil),    // 2: outbox.message.QueryResult
+	(*MessagePayload)(nil), // 3: outbox.message.MessagePayload
 }
-var file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = []int32{
-	2, // 0: outbox.menu.Response.items:type_name -> outbox.menu.QueryResult
-	3, // 1: outbox.menu.QueryResult.payload:type_name -> outbox.menu.TodayMenuPayload
-	0, // 2: outbox.menu.FindTodayMenuOutboxController.FindOutboxByEventTypeAndStatusUseCase:input_type -> outbox.menu.Request
-	1, // 3: outbox.menu.FindTodayMenuOutboxController.FindOutboxByEventTypeAndStatusUseCase:output_type -> outbox.menu.Response
+var file_message_outbox_v1_find_hobom_message_outbox_proto_depIdxs = []int32{
+	2, // 0: outbox.message.Response.items:type_name -> outbox.message.QueryResult
+	3, // 1: outbox.message.QueryResult.payload:type_name -> outbox.message.MessagePayload
+	0, // 2: outbox.message.FindHoBomMessageOutboxController.FindOutboxByEventTypeAndStatusUseCase:input_type -> outbox.message.Request
+	1, // 3: outbox.message.FindHoBomMessageOutboxController.FindOutboxByEventTypeAndStatusUseCase:output_type -> outbox.message.Response
 	3, // [3:4] is the sub-list for method output_type
 	2, // [2:3] is the sub-list for method input_type
 	2, // [2:2] is the sub-list for extension type_name
@@ -400,26 +400,26 @@ var file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = []int32{
 	0, // [0:2] is the sub-list for field type_name
 }
 
-func init() { file_menu_outbox_v1_hobom_menu_outbox_proto_init() }
-func file_menu_outbox_v1_hobom_menu_outbox_proto_init() {
-	if File_menu_outbox_v1_hobom_menu_outbox_proto != nil {
+func init() { file_message_outbox_v1_find_hobom_message_outbox_proto_init() }
+func file_message_outbox_v1_find_hobom_message_outbox_proto_init() {
+	if File_message_outbox_v1_find_hobom_message_outbox_proto != nil {
 		return
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
-			RawDescriptor: unsafe.Slice(unsafe.StringData(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc), len(file_menu_outbox_v1_hobom_menu_outbox_proto_rawDesc)),
+			RawDescriptor: unsafe.Slice(unsafe.StringData(file_message_outbox_v1_find_hobom_message_outbox_proto_rawDesc), len(file_message_outbox_v1_find_hobom_message_outbox_proto_rawDesc)),
 			NumEnums:      0,
 			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
-		GoTypes:           file_menu_outbox_v1_hobom_menu_outbox_proto_goTypes,
-		DependencyIndexes: file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs,
-		MessageInfos:      file_menu_outbox_v1_hobom_menu_outbox_proto_msgTypes,
+		GoTypes:           file_message_outbox_v1_find_hobom_message_outbox_proto_goTypes,
+		DependencyIndexes: file_message_outbox_v1_find_hobom_message_outbox_proto_depIdxs,
+		MessageInfos:      file_message_outbox_v1_find_hobom_message_outbox_proto_msgTypes,
 	}.Build()
-	File_menu_outbox_v1_hobom_menu_outbox_proto = out.File
-	file_menu_outbox_v1_hobom_menu_outbox_proto_goTypes = nil
-	file_menu_outbox_v1_hobom_menu_outbox_proto_depIdxs = nil
+	File_message_outbox_v1_find_hobom_message_outbox_proto = out.File
+	file_message_outbox_v1_find_hobom_message_outbox_proto_goTypes = nil
+	file_message_outbox_v1_find_hobom_message_outbox_proto_depIdxs = nil
 }
