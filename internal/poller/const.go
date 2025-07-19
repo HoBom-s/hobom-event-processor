@@ -4,8 +4,8 @@ import "time"
 
 const (
   // Define Kafka Event Types
-  EventTypeTodayMenu 	= "TODAY_MENU"
-  EventTypeHoBomLog   = "HOBOM_LOG"
+  EventTypeHoBomMessage 	= "MESSAGE"
+  EventTypeHoBomLog       = "HOBOM_LOG"
 
   // Outbox Statuss
   OutboxPending 		= "PENDING"
