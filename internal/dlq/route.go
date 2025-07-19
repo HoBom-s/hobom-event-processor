@@ -1,7 +1,7 @@
 package dlq
 
 import (
-	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/menu/outbox/v1"
+	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/message/outbox/v1"
 	"github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	"github.com/HoBom-s/hobom-event-processor/infra/redis"
 	poller "github.com/HoBom-s/hobom-event-processor/internal/poller"
