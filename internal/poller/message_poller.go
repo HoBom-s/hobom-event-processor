@@ -49,7 +49,7 @@ func (p *messagePoller) StartPolling(ctx context.Context) {
 // Outbox Status 가 `PENDING` 인 것을 가져오도록 한다.
 func (p *messagePoller) poll(ctx context.Context) {
 	req := &outboxPb.Request{
-		EventType: EventTypeTodayMenu,
+		EventType: EventTypeHoBomMessage,
 		Status:    OutboxPending,
 	}
 
