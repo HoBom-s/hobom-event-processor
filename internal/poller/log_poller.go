@@ -6,24 +6,24 @@ import (
 	"fmt"
 	"time"
 
-	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/log/outbox/v1"
-	outboxMenuPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/menu/outbox/v1"
+	outboxFindPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/log/outbox/v1"
+	outboxPatchPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/message/outbox/v1"
 	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	redisClient "github.com/HoBom-s/hobom-event-processor/infra/redis"
 	"google.golang.org/grpc"
 )
 
 type logPoller struct {
-	findClient	outboxPb.FindHoBomLogOutboxControllerClient
-	patchClient outboxMenuPb.PatchOutboxControllerClient
+	findClient	outboxFindPb.FindHoBomLogOutboxControllerClient
+	patchClient outboxPatchPb.PatchOutboxControllerClient
 	publisher   publisher.KafkaPublisher
 	redisDLQ 	*redisClient.RedisDLQStore
 }
 
 func NewLogPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, redisDLQ *redisClient.RedisDLQStore) Poller {
 	return &logPoller{
-		findClient: outboxPb.NewFindHoBomLogOutboxControllerClient(conn),
-		patchClient: outboxMenuPb.NewPatchOutboxControllerClient(conn),
+		findClient:  outboxFindPb.NewFindHoBomLogOutboxControllerClient(conn),
+		patchClient: outboxPatchPb.NewPatchOutboxControllerClient(conn),
 		publisher:   publisher,
 		redisDLQ:	 redisDLQ,
 	}
@@ -49,7 +49,7 @@ func (p *logPoller) StartPolling(ctx context.Context) {
 // 해당 서버를 통과한 API 요청 및 응답에 대한 Log 들을 수집하고, hobom-internal-backend 로 적재하기 위한 데이터를 가지고 있다.
 // EventType이 `HOBOM_LOG` 이고, Outbox Status 가 `PENDING` 인 것을 가져오도록 한다.
 func (p *logPoller) poll(ctx context.Context) {
-	req := &outboxPb.Request{
+	req := &outboxFindPb.Request{
 		EventType: EventTypeHoBomLog,
 		Status:    OutboxPending,
 	}
@@ -131,7 +131,7 @@ func (p *logPoller) poll(ctx context.Context) {
 // Outbox DB 에 `SENT` 상태로 업데이트를 한다.
 func (p *logPoller) markAsSent(ctx context.Context, eventId string) {
 	fmt.Printf("📥 Marking as SENT: %s\n", eventId)
-	p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxMenuPb.MarkRequest{
+	p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPatchPb.MarkRequest{
 		EventId: eventId,
 	})
 }
@@ -139,7 +139,7 @@ func (p *logPoller) markAsSent(ctx context.Context, eventId string) {
 // gRPC 통신을 통해, for-hobo-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
 // Outbox DB 에 `FAILED` 상태로 업데이트를 한다.
 func (p *logPoller) markAsFailed(ctx context.Context, eventId, reason string) {
-	p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &outboxMenuPb.MarkFailedRequest{
+	p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &outboxPatchPb.MarkFailedRequest{
 		EventId:      eventId,
 		ErrorMessage: reason,
 	})

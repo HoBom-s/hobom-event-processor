@@ -2,9 +2,9 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             (unknown)
-// source: menu/outbox/v1/patch-hobom-menu-outbox.proto
+// source: message/outbox/v1/patch-hobom-message-outbox.proto
 
-package hobommenupb
+package hobommessagepb
 
 import (
 	context "context"
@@ -20,8 +20,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	PatchOutboxController_PatchOutboxMarkAsSentUseCase_FullMethodName   = "/outbox.menu.PatchOutboxController/PatchOutboxMarkAsSentUseCase"
-	PatchOutboxController_PatchOutboxMarkAsFailedUseCase_FullMethodName = "/outbox.menu.PatchOutboxController/PatchOutboxMarkAsFailedUseCase"
+	PatchOutboxController_PatchOutboxMarkAsSentUseCase_FullMethodName   = "/outbox.message.PatchOutboxController/PatchOutboxMarkAsSentUseCase"
+	PatchOutboxController_PatchOutboxMarkAsFailedUseCase_FullMethodName = "/outbox.message.PatchOutboxController/PatchOutboxMarkAsFailedUseCase"
 )
 
 // PatchOutboxControllerClient is the client API for PatchOutboxController service.
@@ -143,7 +143,7 @@ func _PatchOutboxController_PatchOutboxMarkAsFailedUseCase_Handler(srv interface
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var PatchOutboxController_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "outbox.menu.PatchOutboxController",
+	ServiceName: "outbox.message.PatchOutboxController",
 	HandlerType: (*PatchOutboxControllerServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
@@ -156,5 +156,5 @@ var PatchOutboxController_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "menu/outbox/v1/patch-hobom-menu-outbox.proto",
+	Metadata: "message/outbox/v1/patch-hobom-message-outbox.proto",
 }
