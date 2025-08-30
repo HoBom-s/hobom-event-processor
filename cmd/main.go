@@ -22,7 +22,7 @@ import (
 
 func main() {
 	// 1. Connect gRPC
-	conn, err := grpc.Dial("localhost:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("host.docker.internal:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to gRPC: %v", err)
 	}
@@ -33,14 +33,14 @@ func main() {
 
 	// 2. KafkaPublisher 생성
 	kafkaCfg := publisher.KafkaConfig{
-		Brokers:      []string{"localhost:9092"},
+		Brokers:      []string{"kafka:9092"},
 	}
 	kafkaPublisher := publisher.NewKafkaPublisher(kafkaCfg)
 
 	// 3. RedisClient 생성
 	rc := redisClient.NewRedisDLQStore(
 			redis.NewClient(&redis.Options{
-			Addr: 		"localhost:6379",
+			Addr: 		"redis:6379",
 			Password: 	"",
 			DB: 		0,
 		}),
@@ -58,14 +58,14 @@ func main() {
 	health.RegisterRoutes(router)
 	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn)
 	server := &http.Server{
-		Addr:    ":8081",
+		Addr:    ":8082",
 		Handler: router,
 	}
 	
 	// 6. Setup Graceful Shutdown
 	// Main Thred 차단 방지
 	go func() {
-		log.Println("🚀 Starting HTTP server on :8081")
+		log.Println("🚀 Starting HTTP server on :8082")
 		if err := server.ListenAndServe(); err != nil {
 			log.Fatalf("Failed to start Gin server: %v", err)
 		}

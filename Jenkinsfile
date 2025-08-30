@@ -3,101 +3,141 @@ pipeline {
 
   options {
     timestamps()
-    ansiColor('xterm')
     disableConcurrentBuilds()
   }
 
   environment {
-    APP_NAME       = 'hobom-event-processor'
-
     // Docker Hub
-    REGISTRY       = 'docker.io'
-    IMAGE_REPO     = '<hub-username>/<repo>'      // ex) hobom/hobom-event-processor
-    TAG            = "${env.BUILD_NUMBER}"
-    IMAGE          = "${REGISTRY}/${IMAGE_REPO}:${TAG}"
-    REGISTRY_CRED  = 'dockerhub-cred'             // Jenkins creds (username/password or token)
+    REGISTRY      = 'docker.io'
+    IMAGE_REPO    = 'jjockrod/hobom-system'
+    SERVICE_NAME  = 'dev-hobom-event-processor'
+    IMAGE_TAG     = "${REGISTRY}/${IMAGE_REPO}:${SERVICE_NAME}-${env.BUILD_NUMBER}"
+    IMAGE_LATEST  = "${REGISTRY}/${IMAGE_REPO}:${SERVICE_NAME}-latest"
+    REGISTRY_CRED = 'dockerhub-cred'
+    READ_CRED_ID  = 'dockerhub-readonly'
 
-    // k3s
-    KUBE_CONFIG    = 'kubeconfig-cred-id'         // Jenkins creds (Secret file)
-    K8S_NAMESPACE  = 'default'
-    DEPLOY_NAME    = 'hobom-event-processor'
-    CONTAINER_NAME = 'processor'
+    // Remote server
+    APP_NAME      = 'dev-hobom-event-processor'
+    DEPLOY_HOST   = 'ishisha.iptime.org'
+    DEPLOY_PORT   = '22223'
+    DEPLOY_USER   = 'infra-admin'
+    SSH_CRED_ID   = 'deploy-ssh-key'
+
+    // Runtime
+    HOST_PORT      = '8082'
+    CONTAINER_PORT = '8082'
+
+    // Build target
+    TARGET_PLATFORM = 'linux/amd64'
   }
 
   stages {
+
     stage('Checkout (with submodules)') {
       steps {
-        // 서브모듈 반드시 포함!
-        checkout([$class: 'GitSCM',
+        checkout([
+          $class: 'GitSCM',
           branches: scm.branches,
           userRemoteConfigs: scm.userRemoteConfigs,
-          extensions: [[
-            $class: 'SubmoduleOption',
-            recursiveSubmodules: true,
-            trackingSubmodules: false,
-            reference: '',
-            timeout: 20
-          ]]
+          extensions: [
+            [$class: 'CloneOption', shallow: true, depth: 1, noTags: false, honorRefspec: true],
+            [$class: 'SubmoduleOption',
+              disableSubmodules: false,
+              parentCredentials: true,
+              recursiveSubmodules: true,
+              trackingSubmodules: false,
+              reference: '',
+              shallow: true,
+              depth: 1
+            ]
+          ]
         ])
-        sh 'git --no-pager log -1 --pretty=oneline'
-        sh 'git submodule status || true'
-      }
-    }
 
-    // 선택: 테스트(원하면 유지, 없애도 OK)
-    stage('Unit Test (optional)') {
-      steps {
-        // Jenkins 노드에 Go가 없다면 docker로 테스트
         sh '''
-          docker run --rm -v "$PWD":/app -w /app golang:1.22-alpine \
-            sh -lc "apk add --no-cache git && go test ./... -count=1"
+          set -eux
+          git submodule sync --recursive
+          git submodule update --init --recursive --depth 1
         '''
       }
-      post {
-        always {
-          junit allowEmptyResults: true, testResults: '**/TEST-*.xml'
-        }
+    }
+
+    stage('Unit tests (Go, in Docker)') {
+      steps {
+        sh '''
+          set -eux
+          docker run --rm -v "$PWD":/src -w /src golang:1.22-alpine \
+            sh -lc "apk add --no-cache git && go test ./..."
+        '''
       }
     }
 
-    stage('Docker Build & Push') {
+    stage('Build & Push Image') {
       steps {
         withCredentials([usernamePassword(credentialsId: env.REGISTRY_CRED, usernameVariable: 'REG_USER', passwordVariable: 'REG_PASS')]) {
-          sh """
-            docker build -t ${IMAGE} .
-            echo "$REG_PASS" | docker login ${REGISTRY} -u "$REG_USER" --password-stdin
-            docker push ${IMAGE}
-            docker logout ${REGISTRY}
-          """
+          sh '''
+            set -eu
+            export DOCKER_BUILDKIT=1
+            GIT_SHA=$(git rev-parse --short HEAD || echo local)
+
+            # login (masked)
+            set +x
+            echo "$REG_PASS" | docker login "$REGISTRY" -u "$REG_USER" --password-stdin
+            set -x
+
+            docker build \
+              --platform "${TARGET_PLATFORM}" \
+              --build-arg VERSION="${BUILD_NUMBER}" \
+              --build-arg COMMIT="${GIT_SHA}" \
+              -t "${IMAGE_TAG}" -t "${IMAGE_LATEST}" .
+
+            docker push "${IMAGE_TAG}"
+            docker push "${IMAGE_LATEST}"
+          '''
         }
       }
     }
 
-    stage('Deploy to k3s (only develop)') {
-      when { expression { env.BRANCH_NAME == 'develop' } }
+    stage('Deploy to server') {
+      when { anyOf { branch 'develop'; branch 'main' } }
       steps {
-        withCredentials([file(credentialsId: env.KUBE_CONFIG, variable: 'KUBECONFIG_FILE')]) {
-          sh """
-            export KUBECONFIG="$KUBECONFIG_FILE"
-            kubectl -n ${K8S_NAMESPACE} set image deployment/${DEPLOY_NAME} ${CONTAINER_NAME}=${IMAGE} --record
-            kubectl -n ${K8S_NAMESPACE} rollout status deployment/${DEPLOY_NAME} --timeout=300s
-          """
+        sshagent (credentials: [env.SSH_CRED_ID]) {
+          withCredentials([usernamePassword(credentialsId: env.READ_CRED_ID, usernameVariable: 'PULL_USER', passwordVariable: 'PULL_PASS')]) {
+            sh '''
+set -eux
+ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
+  APP_NAME="$APP_NAME" \
+  IMAGE="$IMAGE_LATEST" \
+  CONTAINER="$APP_NAME" \
+  HOST_PORT="$HOST_PORT" \
+  CONTAINER_PORT="$CONTAINER_PORT" \
+  PULL_USER="$PULL_USER" \
+  PULL_PASS="$PULL_PASS" \
+  bash -s <<'EOS'
+set -euo pipefail
+echo "[REMOTE] Deploying $APP_NAME with image $IMAGE"
+
+echo "$PULL_PASS" | docker login docker.io -u "$PULL_USER" --password-stdin
+
+docker pull "$IMAGE"
+docker rm -f "$CONTAINER" || true
+docker network create hobom-net || true
+
+docker run -d --name "$CONTAINER" \
+  --network hobom-net \
+  --restart unless-stopped \
+  -p "${HOST_PORT}:${CONTAINER_PORT}" \
+  "$IMAGE"
+
+docker ps --filter "name=$CONTAINER" --format "table {{.Names}}\\t{{.Image}}\\t{{.Status}}\\t{{.Ports}}"
+EOS
+            '''
+          }
         }
       }
     }
-  }
 
   post {
-    success {
-      echo "✅ Build #${env.BUILD_NUMBER} OK (${env.BRANCH_NAME})"
-      script {
-        if (env.BRANCH_NAME == 'develop') {
-          echo "🚀 Deployed ${IMAGE} to k3s (deployment=${DEPLOY_NAME}, container=${CONTAINER_NAME})"
-        }
-      }
-    }
-    failure {
-      echo "❌ Build failed (${env.BRANCH_NAME})"
-    }
+    success { echo "✅ Go svc #${env.BUILD_NUMBER} → pushed ${env.IMAGE_TAG} & deployed" }
+    failure { echo "❌ Build failed (${env.BRANCH_NAME})" }
   }
 }
