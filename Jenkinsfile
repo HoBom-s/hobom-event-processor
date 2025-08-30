@@ -103,7 +103,6 @@ docker network create hobom-net || true
 docker run -d --name "$CONTAINER" \
   --network hobom-net \
   --restart unless-stopped \
-  --add-host=host.docker.internal:host-gateway \
   -p "${HOST_PORT}:${CONTAINER_PORT}" \
   "$IMAGE"
 

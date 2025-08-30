@@ -22,7 +22,7 @@ import (
 
 func main() {
 	// 1. Connect gRPC
-	conn, err := grpc.Dial("0.0.0.0:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.Dial("dev-for-hobom-backend:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		log.Fatalf("Failed to connect to gRPC: %v", err)
 	}
