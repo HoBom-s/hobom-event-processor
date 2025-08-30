@@ -123,6 +123,7 @@ EOS
         }
       }
     }
+  }
 
   post {
     success {
