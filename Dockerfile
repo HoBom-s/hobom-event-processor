@@ -1,4 +1,4 @@
-FROM golang:1.22-alpine AS builder
+FROM golang:1.24-alpine AS builder
 RUN apk add --no-cache make git tzdata ca-certificates curl bash
 
 ENV BUF_VERSION=1.43.0
