@@ -33,6 +33,7 @@ pipeline {
     // ===== (Optional) env-file on remote host =====
     ENV_PATH        = '/etc/hobom-dev/dev-hobom-event-processor/.env'
 
+    // App runtime fallbacks (env-file 없을 때 -e로 주입)
     GRPC_TARGET     = 'host.docker.internal:50051'
     REDIS_ADDR      = 'redis:6379'
     KAFKA_BROKERS   = 'kafka:9092'
@@ -71,8 +72,17 @@ pipeline {
       steps {
         sh '''
           set -eux
-          docker run --rm -v "$PWD":/src -w /src golang:1.22-alpine \
-            sh -lc "apk add --no-cache git >/dev/null || true; export PATH=/usr/local/go/bin:$PATH; go version; go test ./..."
+
+          # 모듈/빌드 캐시 디렉토리 준비(속도 개선)
+          mkdir -p .cache/go-build .gopath
+
+          # Debian 베이스의 공식 golang 이미지 사용 (PATH 이슈 회피)
+          docker run --rm \
+            -v "$PWD":/src -w /src \
+            -v "$PWD/.cache/go-build":/root/.cache/go-build \
+            -v "$PWD/.gopath":/go \
+            golang:1.22 \
+            bash -lc "which go && echo PATH=$PATH && go version && go mod download && go test ./..."
         '''
       }
     }
@@ -126,19 +136,14 @@ ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
 set -euo pipefail
 echo "[REMOTE] Deploying $APP_NAME with image $IMAGE"
 
-# docker login (masked)
 echo "$PULL_PASS" | docker login docker.io -u "$PULL_USER" --password-stdin
 
-# pull latest image
-docker pull "$IMAGE"
+docker pull "$IMAGE" || { echo "[REMOTE][ERROR] docker pull failed"; exit 1; }
 
-# stop & remove existing
 docker rm -f "$CONTAINER" || true
-
-# network
 docker network create hobom-net || true
 
-# env-file가 있으면 우선 사용, 없으면 개별 -e로 주입
+# env-file이 있으면 사용, 없으면 개별 -e로 주입
 if [ -f "$ENV_PATH" ]; then
   ENV_OPTS="--env-file $ENV_PATH"
 else
@@ -157,19 +162,6 @@ docker ps --filter "name=$CONTAINER" --format "table {{.Names}}\\t{{.Image}}\\t{
 EOS
             '''
           }
-        }
-      }
-    }
-
-    stage('Smoke check') {
-      when { anyOf { branch 'develop'; branch 'main' } }
-      steps {
-        sshagent (credentials: [env.SSH_CRED_ID]) {
-          sh """
-            ssh -o StrictHostKeyChecking=no -p ${env.DEPLOY_PORT} ${env.DEPLOY_USER}@${env.DEPLOY_HOST} '
-              curl -fsS http://localhost:${env.HOST_PORT}/health || true
-            '
-          """
         }
       }
     }
