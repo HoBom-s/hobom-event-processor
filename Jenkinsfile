@@ -72,17 +72,14 @@ pipeline {
       steps {
         sh '''
           set -eux
-
-          # 모듈/빌드 캐시 디렉토리 준비(속도 개선)
           mkdir -p .cache/go-build .gopath
 
-          # Debian 베이스의 공식 golang 이미지 사용 (PATH 이슈 회피)
           docker run --rm \
             -v "$PWD":/src -w /src \
             -v "$PWD/.cache/go-build":/root/.cache/go-build \
             -v "$PWD/.gopath":/go \
             golang:1.22 \
-            bash -lc "which go && echo PATH=$PATH && go version && go mod download && go test ./..."
+            bash -lc 'set -euxo pipefail; which go; echo PATH=$PATH; go version; go mod download; go test ./...'
         '''
       }
     }
