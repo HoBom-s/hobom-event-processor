@@ -70,45 +70,31 @@ pipeline {
 
     stage('Unit tests (Go, in Docker)') {
       steps {
-        withCredentials([string(credentialsId: 'github-token-for-hobom-account', variable: 'GH_TOKEN')]) {
+        withCredentials([usernamePassword(
+          credentialsId: 'github-token-for-hobom-account',
+          usernameVariable: 'GH_USER',
+          passwordVariable: 'GH_TOKEN'
+        )]) {
           sh '''
             set -eux
             mkdir -p .cache/go-build .gopath
 
-            # 1) 컨테이너 안에서 git 자격/Go 환경 셋업
             docker run --rm \
               -v "$PWD":/src -w /src \
               -v "$PWD/.cache/go-build":/root/.cache/go-build \
               -v "$PWD/.gopath":/go \
               -e GOCACHE=/root/.cache/go-build \
               -e GOPATH=/go \
+              -e GH_USER="$GH_USER" \
               -e GH_TOKEN="$GH_TOKEN" \
               golang:1.22 \
-              bash -lc "set -euxo pipefail; \
-                git config --global --add url.\\"https://${GH_TOKEN}:x-oauth-basic@github.com/\\".insteadOf \\"https://github.com/\\"; \
+              bash -lc 'set -euxo pipefail; \
+                git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com/".insteadOf "https://github.com/"; \
                 go env -w GOPRIVATE=github.com/HoBom-s/*; \
                 go env -w GONOSUMDB=github.com/HoBom-s/*; \
-                go version"
-
-            # 2) 모듈 다운로드 (컨테이너 안)
-            docker run --rm \
-              -v "$PWD":/src -w /src \
-              -v "$PWD/.cache/go-build":/root/.cache/go-build \
-              -v "$PWD/.gopath":/go \
-              -e GOCACHE=/root/.cache/go-build \
-              -e GOPATH=/go \
-              golang:1.22 \
-              go mod download
-
-            # 3) 테스트 실행 (컨테이너 안)
-            docker run --rm \
-              -v "$PWD":/src -w /src \
-              -v "$PWD/.cache/go-build":/root/.cache/go-build \
-              -v "$PWD/.gopath":/go \
-              -e GOCACHE=/root/.cache/go-build \
-              -e GOPATH=/go \
-              golang:1.22 \
-              go test ./... -count=1 -v
+                go version; \
+                go mod download; \
+                go test ./... -count=1 -v'
           '''
         }
       }
