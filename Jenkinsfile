@@ -78,6 +78,8 @@ pipeline {
             -v "$PWD":/src -w /src \
             -v "$PWD/.cache/go-build":/root/.cache/go-build \
             -v "$PWD/.gopath":/go \
+            -e GOCACHE=/root/.cache/go-build \
+            -e GOPATH=/go \
             golang:1.22 \
             bash -lc 'set -euxo pipefail; which go; echo PATH=$PATH; go version; go mod download; go test ./...'
         '''
