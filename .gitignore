@@ -16,6 +16,3 @@ vendor/
 .env
 .env.*
 *.local
-
-# dependency cache
-go.sum
