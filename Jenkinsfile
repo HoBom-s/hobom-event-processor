@@ -72,7 +72,7 @@ pipeline {
         sh '''
           set -eux
           docker run --rm -v "$PWD":/src -w /src golang:1.22-alpine \
-            sh -lc "apk add --no-cache git && go test ./..."
+            sh -lc "apk add --no-cache git >/dev/null || true; export PATH=/usr/local/go/bin:$PATH; go version; go test ./..."
         '''
       }
     }
