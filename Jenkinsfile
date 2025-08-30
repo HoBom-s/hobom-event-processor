@@ -7,28 +7,35 @@ pipeline {
   }
 
   environment {
-    // Docker Hub
-    REGISTRY      = 'docker.io'
-    IMAGE_REPO    = 'jjockrod/hobom-system'
-    SERVICE_NAME  = 'dev-hobom-event-processor'
-    IMAGE_TAG     = "${REGISTRY}/${IMAGE_REPO}:${SERVICE_NAME}-${env.BUILD_NUMBER}"
-    IMAGE_LATEST  = "${REGISTRY}/${IMAGE_REPO}:${SERVICE_NAME}-latest"
-    REGISTRY_CRED = 'dockerhub-cred'
-    READ_CRED_ID  = 'dockerhub-readonly'
+    // ===== Docker Hub =====
+    REGISTRY       = 'docker.io'
+    IMAGE_REPO     = 'jjockrod/hobom-system'
+    SERVICE_NAME   = 'dev-hobom-event-processor'
+    IMAGE_TAG      = "${REGISTRY}/${IMAGE_REPO}:${SERVICE_NAME}-${env.BUILD_NUMBER}"
+    IMAGE_LATEST   = "${REGISTRY}/${IMAGE_REPO}:${SERVICE_NAME}-latest"
+    REGISTRY_CRED  = 'dockerhub-cred'
+    READ_CRED_ID   = 'dockerhub-readonly'
 
-    // Remote server
-    APP_NAME      = 'dev-hobom-event-processor'
-    DEPLOY_HOST   = 'ishisha.iptime.org'
-    DEPLOY_PORT   = '22223'
-    DEPLOY_USER   = 'infra-admin'
-    SSH_CRED_ID   = 'deploy-ssh-key'
+    // ===== Remote server =====
+    APP_NAME       = 'dev-hobom-event-processor'
+    DEPLOY_HOST    = 'ishisha.iptime.org'
+    DEPLOY_PORT    = '22223'
+    DEPLOY_USER    = 'infra-admin'
+    SSH_CRED_ID    = 'deploy-ssh-key'
 
-    // Runtime
-    HOST_PORT      = '8082'
-    CONTAINER_PORT = '8082'
+    // ===== Runtime networking =====
+    HOST_PORT       = '8082'
+    CONTAINER_PORT  = '8082'
 
-    // Build target
+    // ===== Build target =====
     TARGET_PLATFORM = 'linux/amd64'
+
+    // ===== (Optional) env-file on remote host =====
+    ENV_PATH        = '/etc/hobom-dev/dev-hobom-event-processor/.env'
+
+    GRPC_TARGET     = 'host.docker.internal:50051'
+    REDIS_ADDR      = 'redis:6379'
+    KAFKA_BROKERS   = 'kafka:9092'
   }
 
   stages {
@@ -52,7 +59,6 @@ pipeline {
             ]
           ]
         ])
-
         sh '''
           set -eux
           git submodule sync --recursive
@@ -108,23 +114,42 @@ ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
   APP_NAME="$APP_NAME" \
   IMAGE="$IMAGE_LATEST" \
   CONTAINER="$APP_NAME" \
+  ENV_PATH="$ENV_PATH" \
   HOST_PORT="$HOST_PORT" \
   CONTAINER_PORT="$CONTAINER_PORT" \
   PULL_USER="$PULL_USER" \
   PULL_PASS="$PULL_PASS" \
+  GRPC_TARGET="$GRPC_TARGET" \
+  REDIS_ADDR="$REDIS_ADDR" \
+  KAFKA_BROKERS="$KAFKA_BROKERS" \
   bash -s <<'EOS'
 set -euo pipefail
 echo "[REMOTE] Deploying $APP_NAME with image $IMAGE"
 
+# docker login (masked)
 echo "$PULL_PASS" | docker login docker.io -u "$PULL_USER" --password-stdin
 
+# pull latest image
 docker pull "$IMAGE"
+
+# stop & remove existing
 docker rm -f "$CONTAINER" || true
+
+# network
 docker network create hobom-net || true
+
+# env-file가 있으면 우선 사용, 없으면 개별 -e로 주입
+if [ -f "$ENV_PATH" ]; then
+  ENV_OPTS="--env-file $ENV_PATH"
+else
+  ENV_OPTS="-e GRPC_TARGET=$GRPC_TARGET -e REDIS_ADDR=$REDIS_ADDR -e KAFKA_BROKERS=$KAFKA_BROKERS -e PORT=$CONTAINER_PORT"
+fi
 
 docker run -d --name "$CONTAINER" \
   --network hobom-net \
   --restart unless-stopped \
+  --add-host=host.docker.internal:host-gateway \
+  $ENV_OPTS \
   -p "${HOST_PORT}:${CONTAINER_PORT}" \
   "$IMAGE"
 
@@ -135,6 +160,20 @@ EOS
         }
       }
     }
+
+    stage('Smoke check') {
+      when { anyOf { branch 'develop'; branch 'main' } }
+      steps {
+        sshagent (credentials: [env.SSH_CRED_ID]) {
+          sh """
+            ssh -o StrictHostKeyChecking=no -p ${env.DEPLOY_PORT} ${env.DEPLOY_USER}@${env.DEPLOY_HOST} '
+              curl -fsS http://localhost:${env.HOST_PORT}/health || true
+            '
+          """
+        }
+      }
+    }
+  }
 
   post {
     success { echo "✅ Go svc #${env.BUILD_NUMBER} → pushed ${env.IMAGE_TAG} & deployed" }
