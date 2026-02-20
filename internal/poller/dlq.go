@@ -3,16 +3,16 @@ package poller
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	redisClient "github.com/HoBom-s/hobom-event-processor/infra/redis"
 )
 
-// Redis에 DLQ를 저장하도록 한다.
-// TTL: 72 시간, Key: dlq:[category]:[event-id], Payload: JsonValue
-func saveDLQ(redis *redisClient.RedisDLQStore, ctx context.Context, prefix, eventId string, value []byte) {
+// saveDLQ persists a failed event payload to the DLQ store.
+// Key format: dlq:[category]:[event-id], TTL: 72h.
+func saveDLQ(store redisClient.DLQStore, ctx context.Context, prefix, eventId string, value []byte) {
 	key := fmt.Sprintf("%s:%s", prefix, eventId)
-	err := redis.Save(ctx, key, value, TTL72Hours)
-	if err != nil {
-		fmt.Printf("❌ Failed to save DLQ for %s: %v\n", eventId, err)
+	if err := store.Save(ctx, key, value, TTL72Hours); err != nil {
+		slog.Error("failed to save DLQ", "eventId", eventId, "err", err)
 	}
 }

@@ -3,31 +3,37 @@ package poller
 import "time"
 
 const (
-  // Define Kafka Event Types
-  EventTypeHoBomMessage 	= "MESSAGE"
-  EventTypeHoBomLog       = "HOBOM_LOG"
+	// EventTypeHoBomMessage is the outbox event type for user-to-user messages.
+	EventTypeHoBomMessage = "MESSAGE"
+	// EventTypeHoBomLog is the outbox event type for API request/response logs.
+	EventTypeHoBomLog = "HOBOM_LOG"
 
-  // Outbox Statuss
-  OutboxPending 		= "PENDING"
-  OutboxSent    		= "SENT"
-  OutboxFailed			= "FAILED"
+	// OutboxPending is the initial state of an outbox event awaiting dispatch.
+	OutboxPending = "PENDING"
+	// OutboxSent indicates the event was successfully published to Kafka.
+	OutboxSent = "SENT"
+	// OutboxFailed indicates the event could not be published after all retries.
+	OutboxFailed = "FAILED"
 
-  // Kafka Topics
-  HoBomMessage     = "hobom.messages"
-  HoBomLog         = "hobom.logs"
+	// HoBomMessage is the Kafka topic for user-to-user message events.
+	HoBomMessage = "hobom.messages"
+	// HoBomLog is the Kafka topic for API log events.
+	HoBomLog = "hobom.logs"
 
-  // Message Types
-  Mail            = "MAIL_MESSAGE"
-  Push            = "PUSH_MESSAGE"
+	// Mail identifies an email delivery message type.
+	Mail = "MAIL_MESSAGE"
+	// Push identifies a push-notification message type.
+	Push = "PUSH_MESSAGE"
 
-  // DLQ Keys
-  // DLQ의 Key는 Prefix로 `dlq:`를 가져야 함에 주의하도록 한다.
-  HoBomTodayMenuDLQPrefix    = "dlq:menu:"
-  HoBomLogDLQPrefix          = "dlq:log:"
+	// HoBomTodayMenuDLQPrefix is the Redis key prefix for message-event DLQ entries.
+	// All DLQ keys must start with "dlq:" for pattern-matching queries.
+	HoBomTodayMenuDLQPrefix = "dlq:menu:"
+	// HoBomLogDLQPrefix is the Redis key prefix for log-event DLQ entries.
+	HoBomLogDLQPrefix = "dlq:log:"
 
-  // DLQ TTL
-  TTL72Hours                 = 72 * time.Hour
+	// TTL72Hours is the retention period for DLQ entries.
+	TTL72Hours = 72 * time.Hour
 
-  // Internal API Prefix
-  HoBomEventPrcessorInternalApiPrefix     = "/hobom-event-processor/internal/api/v1"
+	// HoBomEventProcessorInternalApiPrefix is the base path for internal management APIs.
+	HoBomEventProcessorInternalApiPrefix = "/hobom-event-processor/internal/api/v1"
 )

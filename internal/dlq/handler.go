@@ -1,7 +1,6 @@
 package dlq
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -40,7 +39,7 @@ func (h *DLQHandler) GetDLQS(c *gin.Context) {
 func (h *DLQHandler) GetDLQ(c *gin.Context) {
 	key := c.Param("key")
 
-	data, err := h.Service.GetDLQValue(context.Background(), key)
+	data, err := h.Service.GetDLQValue(c.Request.Context(), key)
 	if err != nil {
 		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("DLQ not found: %v", err)})
 		return

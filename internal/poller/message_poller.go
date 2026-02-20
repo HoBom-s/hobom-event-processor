@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/message/outbox/v1"
@@ -16,38 +17,22 @@ type messagePoller struct {
 	findClient  outboxPb.FindHoBomMessageOutboxControllerClient
 	patchClient outboxPb.PatchOutboxControllerClient
 	publisher   publisher.KafkaPublisher
-	redisDLQ 	*redisClient.RedisDLQStore
+	redisDLQ    redisClient.DLQStore
 }
 
-func NewMessagePoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, redisDLQ *redisClient.RedisDLQStore) Poller {
+func NewMessagePoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, redisDLQ redisClient.DLQStore) Poller {
 	return &messagePoller{
 		findClient:  outboxPb.NewFindHoBomMessageOutboxControllerClient(conn),
 		patchClient: outboxPb.NewPatchOutboxControllerClient(conn),
 		publisher:   publisher,
-		redisDLQ:	 redisDLQ,
+		redisDLQ:    redisDLQ,
 	}
-}
-
-func (p *messagePoller) StartPolling(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
-
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				p.poll(ctx)
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 }
 
 // gRPC 통신을 통해 for-hobom-backend 서버의 Outbox DB 를 polling 하도록 한다.
 // Payload에는 다른 사용자에게 Message를 전송하기 위한 데이터를 가지고 있다.
 // Outbox Status 가 `PENDING` 인 것을 가져오도록 한다.
-func (p *messagePoller) poll(ctx context.Context) {
+func (p *messagePoller) Poll(ctx context.Context) {
 	req := &outboxPb.Request{
 		EventType: EventTypeHoBomMessage,
 		Status:    OutboxPending,
@@ -55,7 +40,7 @@ func (p *messagePoller) poll(ctx context.Context) {
 
 	res, err := p.findClient.FindOutboxByEventTypeAndStatusUseCase(ctx, req)
 	if err != nil {
-		fmt.Printf("❌ Failed to fetch outbox: %v\n", err)
+		slog.Error("failed to fetch message outbox", "err", err)
 		return
 	}
 
@@ -65,21 +50,16 @@ func (p *messagePoller) poll(ctx context.Context) {
 }
 
 func (p *messagePoller) handleMessage(ctx context.Context, item *outboxPb.QueryResult) {
-	title := item.Payload.Title
-	body := item.Payload.Body
-	recipient := item.Payload.Recipient
 	senderId := item.Payload.SenderId
-
 	cmd := DeliverHoBomMessageCommand{
 		Type:      Mail,
-		Title:     title,
-		Body:      body,
-		Recipient: recipient,
+		Title:     item.Payload.Title,
+		Body:      item.Payload.Body,
+		Recipient: item.Payload.Recipient,
 		SenderId:  &senderId,
 		SentAt:    time.Now(),
 	}
-
-	p.publishAndMark(ctx, item.EventId, cmd, HoBomMessage, item.EventType)
+	p.publishAndMark(ctx, item.EventId, cmd, HoBomMessage)
 }
 
 func (p *messagePoller) publishAndMark(
@@ -87,25 +67,23 @@ func (p *messagePoller) publishAndMark(
 	eventId string,
 	cmd DeliverHoBomMessageCommand,
 	topic string,
-	eventType string,
 ) {
 	jsonValue, err := json.Marshal(cmd)
 	if err != nil {
-		p.markAsFailed(ctx, eventId, fmt.Sprintf("❌ Failed to marshal payload to JSON: %v", err))
+		slog.Error("failed to marshal message payload", "eventId", eventId, "err", err)
+		p.markAsFailed(ctx, eventId, fmt.Sprintf("failed to marshal payload: %v", err))
 		return
 	}
 
-	err = p.publisher.Publish(ctx, publisher.Event{
+	if err = publishWithRetry(ctx, p.publisher, publisher.Event{
 		Key:       eventId,
 		Value:     jsonValue,
 		Topic:     topic,
 		Timestamp: time.Now(),
-	})
-
-	if err != nil {
-		fmt.Printf("❌ Kafka publish failed: %v\n", err)
-		p.markAsFailed(ctx, eventId, fmt.Sprintf("❌ Kafka publish failed: %v", err))
-		saveDLQ(p.redisDLQ, ctx, "DLQ:"+eventType, eventId, jsonValue)
+	}); err != nil {
+		slog.Error("kafka publish failed", "eventId", eventId, "err", err)
+		p.markAsFailed(ctx, eventId, fmt.Sprintf("kafka publish failed: %v", err))
+		saveDLQ(p.redisDLQ, ctx, HoBomTodayMenuDLQPrefix, eventId, jsonValue)
 		return
 	}
 
@@ -115,17 +93,21 @@ func (p *messagePoller) publishAndMark(
 // gRPC 통신을 통해, for-hobom-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
 // Outbox DB 에 `SENT` 상태로 업데이트를 한다.
 func (p *messagePoller) markAsSent(ctx context.Context, eventId string) {
-	fmt.Printf("📥 Got Outbox ID: %s", eventId)
-	p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
+	slog.Info("marking message outbox as SENT", "eventId", eventId)
+	if _, err := p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
 		EventId: eventId,
-	})
+	}); err != nil {
+		slog.Error("failed to mark message outbox as SENT", "eventId", eventId, "err", err)
+	}
 }
 
-// gRPC 통신을 통해, for-hobo-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
+// gRPC 통신을 통해, for-hobom-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
 // Outbox DB 에 `FAILED` 상태로 업데이트를 한다.
 func (p *messagePoller) markAsFailed(ctx context.Context, eventId, reason string) {
-	p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &outboxPb.MarkFailedRequest{
+	if _, err := p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &outboxPb.MarkFailedRequest{
 		EventId:      eventId,
 		ErrorMessage: reason,
-	})
+	}); err != nil {
+		slog.Error("failed to mark message outbox as FAILED", "eventId", eventId, "err", err)
+	}
 }

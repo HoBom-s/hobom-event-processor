@@ -2,13 +2,17 @@ package publisher
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 
 	"github.com/segmentio/kafka-go"
 )
 
+// KafkaPublisher is the port for publishing events to Kafka.
+// Implementations must be safe for concurrent use.
 type KafkaPublisher interface {
+	// Publish sends a single event to the topic specified in event.Topic.
 	Publish(ctx context.Context, event Event) error
+	// Close flushes pending messages and closes the underlying writer.
 	Close() error
 }
 
@@ -27,7 +31,7 @@ func NewKafkaPublisher(cfg KafkaConfig, hooks ...Hook) KafkaPublisher {
 			RequiredAcks: cfg.Acks,
 		},
 	}
-	fmt.Println("🎃 Kafka connected")
+	slog.Info("kafka publisher created", "brokers", cfg.Brokers)
 
 	return &kafkaPublisher{
 		cfg:    cfg,

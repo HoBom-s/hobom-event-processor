@@ -11,7 +11,7 @@ type RedisDLQStore struct {
 	client *redis.Client
 }
 
-// DLQ 저장소를 위한 Redis Client를 초기화 하도록 한다.
+// NewRedisDLQStore creates a Redis-backed DLQStore.
 func NewRedisDLQStore(client *redis.Client) *RedisDLQStore {
 	return &RedisDLQStore{
 		client: client,
