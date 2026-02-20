@@ -13,7 +13,7 @@ func RegisterRoutes(router *gin.Engine, redisDLQ *redis.RedisDLQStore, pub publi
 	service := NewService(redisDLQ, pub, outboxPb.NewPatchOutboxControllerClient(conn))
 	handler := NewHandler(service)
 
-	dlq := router.Group(poller.HoBomEventPrcessorInternalApiPrefix + "/dlq")
+	dlq := router.Group(poller.HoBomEventProcessorInternalApiPrefix + "/dlq")
 	{
 		dlq.GET("", handler.GetDLQS)
 		dlq.GET("/:key", handler.GetDLQ)

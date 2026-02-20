@@ -2,42 +2,51 @@ package poller
 
 import (
 	"context"
-	"log"
+	"log/slog"
 	"sync"
+	"time"
 
 	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	redis "github.com/HoBom-s/hobom-event-processor/infra/redis"
 	"google.golang.org/grpc"
 )
 
-// 공통 Poller 인터페이스
+const pollingInterval = 5 * time.Second
+
+// Poller is the interface implemented by all event pollers.
+// Poll executes a single polling cycle and returns when complete.
 type Poller interface {
-	StartPolling(ctx context.Context)
+	Poll(ctx context.Context)
 }
 
-// 모든 polling 을 초기화 및 수행하도록 한다.
-// gRPC 통신을 위한 초기 로직을 수행하도록 한다.
-// Kafka도 파라미터로 의존성을 주입받아 Event Publishing을 수행하도록 한다.
-func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, redisClient *redis.RedisDLQStore) {
-	var wg sync.WaitGroup
-
+// StartAllPollers starts all pollers in background goroutines and returns a WaitGroup.
+// Callers must cancel ctx then call wg.Wait() to ensure all in-flight poll cycles complete
+// before shutting down.
+func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
 	pollers := []Poller{
-		NewMessagePoller(conn, kafkaPublisher, redisClient),
-		NewLogPoller(conn, kafkaPublisher, redisClient),
+		NewMessagePoller(conn, kafkaPublisher, dlqStore),
+		NewLogPoller(conn, kafkaPublisher, dlqStore),
 	}
 
+	var wg sync.WaitGroup
 	for _, p := range pollers {
 		wg.Add(1)
-		go func(poller Poller) {
+		p := p
+		go func() {
 			defer wg.Done()
-			poller.StartPolling(ctx)
-		}(p)
+			ticker := time.NewTicker(pollingInterval)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					p.Poll(ctx)
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
 	}
 
-	log.Println("🚀 All pollers started.")
-	go func() {
-		<-ctx.Done()
-	}()
-
-	wg.Wait()
+	slog.Info("all pollers started")
+	return &wg
 }

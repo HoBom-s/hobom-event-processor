@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"time"
 
 	outboxFindPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/log/outbox/v1"
@@ -14,41 +15,25 @@ import (
 )
 
 type logPoller struct {
-	findClient	outboxFindPb.FindHoBomLogOutboxControllerClient
+	findClient  outboxFindPb.FindHoBomLogOutboxControllerClient
 	patchClient outboxPatchPb.PatchOutboxControllerClient
 	publisher   publisher.KafkaPublisher
-	redisDLQ 	*redisClient.RedisDLQStore
+	redisDLQ    redisClient.DLQStore
 }
 
-func NewLogPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, redisDLQ *redisClient.RedisDLQStore) Poller {
+func NewLogPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, redisDLQ redisClient.DLQStore) Poller {
 	return &logPoller{
 		findClient:  outboxFindPb.NewFindHoBomLogOutboxControllerClient(conn),
 		patchClient: outboxPatchPb.NewPatchOutboxControllerClient(conn),
 		publisher:   publisher,
-		redisDLQ:	 redisDLQ,
+		redisDLQ:    redisDLQ,
 	}
-}
-
-func (p *logPoller) StartPolling(ctx context.Context) {
-	ticker := time.NewTicker(5 * time.Second)
-
-	go func() {
-		for {
-			select {
-			case <-ticker.C:
-				p.poll(ctx)
-			case <-ctx.Done():
-				ticker.Stop()
-				return
-			}
-		}
-	}()
 }
 
 // gRPC 통신을 통한 for-hobom-backend 서버의 Outbox DB 를 polling 하도록 한다.
 // 해당 서버를 통과한 API 요청 및 응답에 대한 Log 들을 수집하고, hobom-internal-backend 로 적재하기 위한 데이터를 가지고 있다.
 // EventType이 `HOBOM_LOG` 이고, Outbox Status 가 `PENDING` 인 것을 가져오도록 한다.
-func (p *logPoller) poll(ctx context.Context) {
+func (p *logPoller) Poll(ctx context.Context) {
 	req := &outboxFindPb.Request{
 		EventType: EventTypeHoBomLog,
 		Status:    OutboxPending,
@@ -56,56 +41,76 @@ func (p *logPoller) poll(ctx context.Context) {
 
 	res, err := p.findClient.FindLogOutboxByEventTypeAndStatusUseCase(ctx, req)
 	if err != nil {
-		fmt.Printf("❌ Failed to fetch outbox: %v\n", err)
+		slog.Error("failed to fetch log outbox", "err", err)
 		return
 	}
 
-	var commands []HoBomLogMessageCommand
-	var eventIds []string
+	type logEntry struct {
+		eventId           string
+		cmd               HoBomLogMessageCommand
+		individualPayload []byte
+	}
 
+	var entries []logEntry
 	for _, item := range res.Items {
-		fmt.Println(item.Payload.TraceId)
-
 		payloadMap, err := structToMap(item.Payload)
 		if err != nil {
-			p.markAsFailed(ctx, item.EventId, "Failed to convert payload to map")
+			p.markAsFailed(ctx, item.EventId, "failed to convert payload to map")
 			continue
 		}
 
+		path := item.Payload.Path
 		cmd := HoBomLogMessageCommand{
 			ServiceType: item.Payload.ServiceType,
 			Level:       item.Payload.Level,
 			TraceId:     item.Payload.TraceId,
 			Message:     item.Payload.Message,
 			HttpMethod:  item.Payload.Method,
-			Path:        &item.Payload.Path,
+			Path:        &path,
 			StatusCode:  int(item.Payload.StatusCode),
 			Host:        item.Payload.Host,
 			UserId:      item.Payload.UserId,
 			Payload:     payloadMap,
 		}
 
-		commands = append(commands, cmd)
-		eventIds = append(eventIds, item.EventId)
+		// 각 이벤트를 단일 원소 배열로 직렬화한다.
+		// DLQ retry 시 컨슈머가 배치 발행과 동일한 포맷을 수신하도록 보장한다.
+		individualPayload, err := json.Marshal([]HoBomLogMessageCommand{cmd})
+		if err != nil {
+			p.markAsFailed(ctx, item.EventId, fmt.Sprintf("marshal error: %v", err))
+			continue
+		}
+
+		entries = append(entries, logEntry{
+			eventId:           item.EventId,
+			cmd:               cmd,
+			individualPayload: individualPayload,
+		})
 	}
 
 	// Event를 발행할 Commands (Log)의 길이가 0 일 경우, 아무런 동작도
 	// 수행하지 않도록 한다.
-	if len(commands) == 0 {
+	if len(entries) == 0 {
 		return
+	}
+
+	commands := make([]HoBomLogMessageCommand, len(entries))
+	for i, e := range entries {
+		commands[i] = e.cmd
 	}
 
 	jsonArray, err := json.Marshal(commands)
 	if err != nil {
-		fmt.Printf("❌ Failed to marshal JSON array: %v\n", err)
-		for _, id := range eventIds {
-			p.markAsFailed(ctx, id, fmt.Sprintf("marshal error: %v", err))
+		slog.Error("failed to marshal log batch", "err", err)
+		for _, e := range entries {
+			p.markAsFailed(ctx, e.eventId, fmt.Sprintf("marshal error: %v", err))
 		}
 		return
 	}
 
-	err = p.publisher.Publish(ctx, publisher.Event{
-		Key:       "hobom-log-batch",
+	// 파티션 분산을 위해 타임스탬프 기반 키를 사용한다.
+	err = publishWithRetry(ctx, p.publisher, publisher.Event{
+		Key:       fmt.Sprintf("hobom-log-%d", time.Now().UnixNano()),
 		Value:     jsonArray,
 		Topic:     HoBomLog,
 		Timestamp: time.Now(),
@@ -113,34 +118,38 @@ func (p *logPoller) poll(ctx context.Context) {
 	// Kafka Event발행에 실패했을 경우, gRPC를 통해 Outbox 데이터를 Fail 로 업데이트 하도록 한다.
 	// 그 후, Redis에 DLQ Event를 저장하도록 한다.
 	if err != nil {
-		fmt.Printf("❌ Kafka publish failed: %v\n", err)
-		for _, id := range eventIds {
-			p.markAsFailed(ctx, id, fmt.Sprintf("publish error: %v", err))
-			saveDLQ(p.redisDLQ, ctx, HoBomLogDLQPrefix, id, jsonArray)
+		slog.Error("kafka publish failed for log batch", "count", len(entries), "err", err)
+		for _, e := range entries {
+			p.markAsFailed(ctx, e.eventId, fmt.Sprintf("publish error: %v", err))
+			saveDLQ(p.redisDLQ, ctx, HoBomLogDLQPrefix, e.eventId, e.individualPayload)
 		}
 		return
 	}
 
 	// Mark as SENT only after successful publish
-	for _, id := range eventIds {
-		p.markAsSent(ctx, id)
+	for _, e := range entries {
+		p.markAsSent(ctx, e.eventId)
 	}
 }
 
 // gRPC 통신을 통해, for-hobom-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
 // Outbox DB 에 `SENT` 상태로 업데이트를 한다.
 func (p *logPoller) markAsSent(ctx context.Context, eventId string) {
-	fmt.Printf("📥 Marking as SENT: %s\n", eventId)
-	p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPatchPb.MarkRequest{
+	slog.Info("marking log outbox as SENT", "eventId", eventId)
+	if _, err := p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPatchPb.MarkRequest{
 		EventId: eventId,
-	})
+	}); err != nil {
+		slog.Error("failed to mark log outbox as SENT", "eventId", eventId, "err", err)
+	}
 }
 
-// gRPC 통신을 통해, for-hobo-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
+// gRPC 통신을 통해, for-hobom-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
 // Outbox DB 에 `FAILED` 상태로 업데이트를 한다.
 func (p *logPoller) markAsFailed(ctx context.Context, eventId, reason string) {
-	p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &outboxPatchPb.MarkFailedRequest{
+	if _, err := p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &outboxPatchPb.MarkFailedRequest{
 		EventId:      eventId,
 		ErrorMessage: reason,
-	})
+	}); err != nil {
+		slog.Error("failed to mark log outbox as FAILED", "eventId", eventId, "err", err)
+	}
 }
