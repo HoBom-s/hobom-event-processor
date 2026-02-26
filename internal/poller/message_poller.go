@@ -52,7 +52,7 @@ func (p *messagePoller) Poll(ctx context.Context) {
 func (p *messagePoller) handleMessage(ctx context.Context, item *outboxPb.QueryResult) {
 	senderId := item.Payload.SenderId
 	cmd := DeliverHoBomMessageCommand{
-		Type:      Mail,
+		Type:      item.Payload.Type,
 		Title:     item.Payload.Title,
 		Body:      item.Payload.Body,
 		Recipient: item.Payload.Recipient,
