@@ -15,16 +15,39 @@ import (
 	"github.com/HoBom-s/hobom-event-processor/internal/health"
 	"github.com/HoBom-s/hobom-event-processor/internal/poller"
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	redis "github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/metadata"
 )
 
 func main() {
 	slog.SetDefault(slog.New(slog.NewJSONHandler(os.Stdout, nil)))
 
+	_ = godotenv.Load()
+
 	// 1. Connect gRPC
-	conn, err := grpc.NewClient("dev-for-hobom-backend:50051", grpc.WithTransportCredentials(insecure.NewCredentials()))
+	grpcAddr := mustEnv("HOBOM_GRPC_ADDR")
+	grpcApiKey := mustEnv("HOBOM_GRPC_API_KEY")
+
+	apiKeyInterceptor := func(
+		ctx context.Context,
+		method string,
+		req, reply any,
+		cc *grpc.ClientConn,
+		invoker grpc.UnaryInvoker,
+		opts ...grpc.CallOption,
+	) error {
+		ctx = metadata.AppendToOutgoingContext(ctx, "x-api-key", grpcApiKey)
+		return invoker(ctx, method, req, reply, cc, opts...)
+	}
+
+	conn, err := grpc.NewClient(
+		grpcAddr,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithUnaryInterceptor(apiKeyInterceptor),
+	)
 	if err != nil {
 		slog.Error("failed to connect to gRPC", "err", err)
 		os.Exit(1)
@@ -35,14 +58,14 @@ func main() {
 	defer cancel()
 
 	// 2. KafkaPublisher 생성
-	kafkaPublisher := publisher.NewKafkaPublisher(publisher.DefaultKafkaConfig([]string{"kafka:9092"}))
+	kafkaBroker := mustEnv("HOBOM_KAFKA_BROKER")
+	kafkaPublisher := publisher.NewKafkaPublisher(publisher.DefaultKafkaConfig([]string{kafkaBroker}))
 
 	// 3. RedisClient 생성
+	redisAddr := mustEnv("HOBOM_REDIS_ADDR")
 	rc := redisClient.NewRedisDLQStore(
 		redis.NewClient(&redis.Options{
-			Addr:     "redis:6379",
-			Password: "",
-			DB:       0,
+			Addr: redisAddr,
 		}),
 	)
 
@@ -53,13 +76,14 @@ func main() {
 	router := gin.Default()
 	health.RegisterRoutes(router)
 	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn)
+	httpAddr := envOrDefault("HOBOM_HTTP_ADDR", ":8082")
 	server := &http.Server{
-		Addr:    ":8082",
+		Addr:    httpAddr,
 		Handler: router,
 	}
 
 	go func() {
-		slog.Info("HTTP server starting", "addr", ":8082")
+		slog.Info("HTTP server starting", "addr", httpAddr)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			slog.Error("HTTP server error", "err", err)
 			os.Exit(1)
@@ -85,4 +109,20 @@ func main() {
 	}
 
 	slog.Info("shutdown complete")
+}
+
+func mustEnv(key string) string {
+	v := os.Getenv(key)
+	if v == "" {
+		slog.Error("required env var is not set", "key", key)
+		os.Exit(1)
+	}
+	return v
+}
+
+func envOrDefault(key, fallback string) string {
+	if v := os.Getenv(key); v != "" {
+		return v
+	}
+	return fallback
 }

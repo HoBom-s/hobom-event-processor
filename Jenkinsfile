@@ -24,6 +24,7 @@ pipeline {
     SSH_CRED_ID    = 'deploy-ssh-key'
 
     // Runtime
+    ENV_PATH       = '/etc/hobom-dev/dev-hobom-event-processor/.env'
     HOST_PORT      = '8082'
     CONTAINER_PORT = '8082'
   }
@@ -74,6 +75,7 @@ ssh -o StrictHostKeyChecking=no -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
   APP_NAME="$APP_NAME" \
   IMAGE="$IMAGE_LATEST" \
   CONTAINER="$APP_NAME" \
+  ENV_PATH="$ENV_PATH" \
   HOST_PORT="$HOST_PORT" \
   CONTAINER_PORT="$CONTAINER_PORT" \
   PULL_USER="$PULL_USER" \
@@ -91,6 +93,12 @@ fi
 # private pull 로그인 (비밀 미노출)
 echo "$PULL_PASS" | docker login docker.io -u "$PULL_USER" --password-stdin
 
+# .env 확인
+if [ ! -f "$ENV_PATH" ]; then
+  echo "[REMOTE][ERROR] $ENV_PATH not found. Create it first."
+  exit 1
+fi
+
 # 최신 이미지 pull + 컨테이너 교체
 docker pull "$IMAGE" || (echo "[REMOTE][ERROR] docker pull failed" && exit 1)
 
@@ -103,6 +111,7 @@ docker network create hobom-net || true
 docker run -d --name "$CONTAINER" \
   --network hobom-net \
   --restart unless-stopped \
+  --env-file "$ENV_PATH" \
   -p "${HOST_PORT}:${CONTAINER_PORT}" \
   "$IMAGE"
 
