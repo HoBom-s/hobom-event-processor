@@ -1,22 +1,53 @@
 package dlq
 
 import (
+	"fmt"
 	"strings"
 
 	poller "github.com/HoBom-s/hobom-event-processor/internal/poller"
 )
 
-// DLQ Key를 통해, Kafka Topic을 추출하도록 한다.
-// 올바른 Key가 맵핑되지 않을 경우, `unknown-topic`을 반환하도록 한다.
-func inferTopicFromKey(key string) string {
+// allowedPrefixes defines the only DLQ key prefixes accepted by the system.
+var allowedPrefixes = []string{
+	poller.HoBomTodayMenuDLQPrefix,
+	poller.HoBomLogDLQPrefix,
+}
+
+// inferTopicFromKey maps a DLQ key to its Kafka topic.
+// Returns an error if the key has an unrecognized prefix.
+func inferTopicFromKey(key string) (string, error) {
 	switch {
 	case strings.HasPrefix(key, poller.HoBomTodayMenuDLQPrefix):
-		return poller.HoBomMessage
+		return poller.HoBomMessage, nil
 	case strings.HasPrefix(key, poller.HoBomLogDLQPrefix):
-		return poller.HoBomLog
+		return poller.HoBomLog, nil
 	default:
-		return "unknown-topic"
+		return "", fmt.Errorf("unrecognized DLQ key prefix: %s", key)
 	}
+}
+
+// isValidDLQKey checks whether the key starts with an allowed prefix.
+func isValidDLQKey(key string) bool {
+	for _, p := range allowedPrefixes {
+		if strings.HasPrefix(key, p) {
+			return true
+		}
+	}
+	return false
+}
+
+// isValidDLQPrefix checks whether the prefix is one of the allowed DLQ prefixes
+// or empty (which means "all DLQ keys").
+func isValidDLQPrefix(prefix string) bool {
+	if prefix == "" {
+		return true
+	}
+	for _, p := range allowedPrefixes {
+		if prefix == p {
+			return true
+		}
+	}
+	return false
 }
 
 // 전달받은 Parameter에서 `:` 기준으로 문자열을 자른 후, `EventID`를 추출하도록 한다.

@@ -58,10 +58,14 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	}
 
 	// Event를 재발행 하도록 한다.
+	topic, err := inferTopicFromKey(key)
+	if err != nil {
+		return fmt.Errorf("invalid DLQ key: %w", err)
+	}
 	if err = s.publisher.Publish(ctx, publisher.Event{
 		Key:       key,
 		Value:     data,
-		Topic:     inferTopicFromKey(key),
+		Topic:     topic,
 		Timestamp: time.Now().UTC(),
 	}); err != nil {
 		return fmt.Errorf("failed to publish: %w", err)
@@ -72,7 +76,7 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	// 만약 EventID가 존재하지 않는다면 다음 로직을 수행하지 않도록 한다.
 	eventId := extractEventIdFromKey(key)
 	if utils.IsEmptyString(eventId) {
-		return fmt.Errorf("invalid DLQ key format, cannot extract event ID from: %s", key)
+		return fmt.Errorf("invalid DLQ key format")
 	}
 	if _, err := s.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
 		EventId: eventId,

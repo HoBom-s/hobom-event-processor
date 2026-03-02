@@ -95,16 +95,19 @@ curl http://localhost:8082/health
 
 ## Configuration
 
-All endpoints are currently hardcoded. Set them in `cmd/main.go`:
+All configuration is managed via environment variables. Locally, create a `.env` file in the project root (already in `.gitignore`).
 
-| Service       | Default                          |
-|--------------|----------------------------------|
-| gRPC backend | `dev-for-hobom-backend:50051`    |
-| Kafka broker | `kafka:9092`                     |
-| Redis        | `redis:6379`                     |
-| HTTP server  | `:8082`                          |
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `HOBOM_GRPC_ADDR` | Yes | - | gRPC backend address (e.g. `dev-for-hobom-backend:50051`) |
+| `HOBOM_GRPC_API_KEY` | Yes | - | API key for gRPC authentication |
+| `HOBOM_KAFKA_BROKER` | Yes | - | Kafka broker address (e.g. `kafka:9092`) |
+| `HOBOM_REDIS_ADDR` | Yes | - | Redis address (e.g. `redis:6379`) |
+| `HOBOM_HTTP_ADDR` | No | `:8082` | HTTP server listen address |
 
 Kafka publisher defaults (via `DefaultKafkaConfig`): `RequireOne` acks, `LeastBytes` balancer, 10s write timeout.
+
+**Production (Docker)**: `.env` is loaded from the deploy server via `--env-file` (e.g. `/etc/hobom-dev/dev-hobom-event-processor/.env`).
 
 ---
 
@@ -115,7 +118,10 @@ Kafka publisher defaults (via `DefaultKafkaConfig`): `RequireOne` acks, `LeastBy
 docker compose -f infra/kafka/docker-compose.yml up -d
 docker compose -f infra/redis/docker-compose.yml up -d
 
-# 2. Generate protobuf code and run
+# 2. Create .env
+cp .env.example .env   # edit values as needed
+
+# 3. Generate protobuf code and run
 make run
 ```
 

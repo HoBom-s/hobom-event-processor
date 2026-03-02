@@ -2,7 +2,7 @@ package dlq
 
 import (
 	"encoding/json"
-	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -24,10 +24,15 @@ func NewHandler(service *DLQService) *DLQHandler {
 // ex) ?prefix=dlq:menu: 또는 ?prefix=dlq:log:
 func (h *DLQHandler) GetDLQS(c *gin.Context) {
 	prefix := c.Query("prefix")
+	if !isValidDLQPrefix(prefix) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid prefix"})
+		return
+	}
 
 	keys, err := h.Service.GetDLQS(c.Request.Context(), prefix)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch DLQ keys: %v", err)})
+		slog.Error("failed to fetch DLQ keys", "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to fetch DLQ keys"})
 		return
 	}
 
@@ -38,16 +43,20 @@ func (h *DLQHandler) GetDLQS(c *gin.Context) {
 // Key값에 해당하는 DLQ를 가져오도록 한다.
 func (h *DLQHandler) GetDLQ(c *gin.Context) {
 	key := c.Param("key")
+	if !isValidDLQKey(key) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid key"})
+		return
+	}
 
 	data, err := h.Service.GetDLQValue(c.Request.Context(), key)
 	if err != nil {
-		c.JSON(http.StatusNotFound, gin.H{"error": fmt.Sprintf("DLQ not found: %v", err)})
+		c.JSON(http.StatusNotFound, gin.H{"error": "DLQ not found"})
 		return
 	}
 
 	var pretty map[string]interface{}
 	if err := json.Unmarshal(data, &pretty); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to parse DLQ JSON"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to parse DLQ"})
 		return
 	}
 
@@ -58,9 +67,14 @@ func (h *DLQHandler) GetDLQ(c *gin.Context) {
 // DLQ를 재발행 하도록 한다.
 func (h *DLQHandler) RetryDLQ(c *gin.Context) {
 	key := c.Param("key")
+	if !isValidDLQKey(key) {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid key"})
+		return
+	}
 
 	if err := h.Service.RetryDLQ(c.Request.Context(), key); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		slog.Error("DLQ retry failed", "key", key, "err", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "retry failed"})
 		return
 	}
 
