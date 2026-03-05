@@ -14,7 +14,8 @@ func TestInferTopicFromKey(t *testing.T) {
 	}{
 		{poller.HoBomTodayMenuDLQPrefix + "event-1", poller.HoBomMessage, false},
 		{poller.HoBomLogDLQPrefix + "event-2", poller.HoBomLog, false},
-		{"dlq:unknown:event-3", "", true},
+		{poller.HoBomSpaceDLQPrefix + "event-3", poller.HoBomSpaceEvents, false},
+		{"dlq:unknown:event-4", "", true},
 		{"invalid-key", "", true},
 		{"", "", true},
 	}
@@ -40,7 +41,8 @@ func TestIsValidDLQKey(t *testing.T) {
 	}{
 		{poller.HoBomTodayMenuDLQPrefix + "event-1", true},
 		{poller.HoBomLogDLQPrefix + "event-2", true},
-		{"dlq:unknown:event-3", false},
+		{poller.HoBomSpaceDLQPrefix + "event-3", true},
+		{"dlq:unknown:event-4", false},
 		{"invalid-key", false},
 		{"", false},
 	}
@@ -61,6 +63,7 @@ func TestIsValidDLQPrefix(t *testing.T) {
 		{"", true},
 		{poller.HoBomTodayMenuDLQPrefix, true},
 		{poller.HoBomLogDLQPrefix, true},
+		{poller.HoBomSpaceDLQPrefix, true},
 		{"arbitrary:", false},
 		{"dlq:unknown:", false},
 	}

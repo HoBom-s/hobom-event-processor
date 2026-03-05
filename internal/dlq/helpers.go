@@ -11,6 +11,7 @@ import (
 var allowedPrefixes = []string{
 	poller.HoBomTodayMenuDLQPrefix,
 	poller.HoBomLogDLQPrefix,
+	poller.HoBomSpaceDLQPrefix,
 }
 
 // inferTopicFromKey maps a DLQ key to its Kafka topic.
@@ -21,6 +22,8 @@ func inferTopicFromKey(key string) (string, error) {
 		return poller.HoBomMessage, nil
 	case strings.HasPrefix(key, poller.HoBomLogDLQPrefix):
 		return poller.HoBomLog, nil
+	case strings.HasPrefix(key, poller.HoBomSpaceDLQPrefix):
+		return poller.HoBomSpaceEvents, nil
 	default:
 		return "", fmt.Errorf("unrecognized DLQ key prefix: %s", key)
 	}

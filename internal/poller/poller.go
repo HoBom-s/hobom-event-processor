@@ -22,10 +22,14 @@ type Poller interface {
 // StartAllPollers starts all pollers in background goroutines and returns a WaitGroup.
 // Callers must cancel ctx then call wg.Wait() to ensure all in-flight poll cycles complete
 // before shutting down.
-func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
+// spaceConn is optional — if nil, the space poller is not started.
+func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
 	pollers := []Poller{
 		NewMessagePoller(conn, kafkaPublisher, dlqStore),
 		NewLogPoller(conn, kafkaPublisher, dlqStore),
+	}
+	if spaceConn != nil {
+		pollers = append(pollers, NewSpacePoller(spaceConn, kafkaPublisher, dlqStore))
 	}
 
 	var wg sync.WaitGroup

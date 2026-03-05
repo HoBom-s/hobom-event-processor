@@ -11,6 +11,15 @@ type DeliverHoBomMessageCommand struct {
 	SentAt    time.Time `json:"sentAt"`
 }
 
+type HoBomSpaceEventCommand struct {
+	EntityType string `json:"entityType"`
+	Action     string `json:"action"`
+	SpaceKey   string `json:"spaceKey"`
+	PageId     int64  `json:"pageId"`
+	Title      string `json:"title"`
+	ActorId    string `json:"actorId"`
+}
+
 type HoBomLogMessageCommand struct {
 	ServiceType string                 `json:"serviceType"`
 	Level       string                 `json:"level"`

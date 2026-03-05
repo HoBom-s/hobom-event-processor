@@ -7,6 +7,8 @@ const (
 	EventTypeHoBomMessage = "MESSAGE"
 	// EventTypeHoBomLog is the outbox event type for API request/response logs.
 	EventTypeHoBomLog = "HOBOM_LOG"
+	// EventTypeSpaceEvent is the outbox event type for space document events.
+	EventTypeSpaceEvent = "SPACE_EVENT"
 
 	// OutboxPending is the initial state of an outbox event awaiting dispatch.
 	OutboxPending = "PENDING"
@@ -19,6 +21,8 @@ const (
 	HoBomMessage = "hobom.messages"
 	// HoBomLog is the Kafka topic for API log events.
 	HoBomLog = "hobom.logs"
+	// HoBomSpaceEvents is the Kafka topic for space document events.
+	HoBomSpaceEvents = "hobom.space-events"
 
 	// Mail identifies an email delivery message type.
 	Mail = "MAIL_MESSAGE"
@@ -30,6 +34,8 @@ const (
 	HoBomTodayMenuDLQPrefix = "dlq:menu:"
 	// HoBomLogDLQPrefix is the Redis key prefix for log-event DLQ entries.
 	HoBomLogDLQPrefix = "dlq:log:"
+	// HoBomSpaceDLQPrefix is the Redis key prefix for space-event DLQ entries.
+	HoBomSpaceDLQPrefix = "dlq:space:"
 
 	// TTL72Hours is the retention period for DLQ entries.
 	TTL72Hours = 72 * time.Hour

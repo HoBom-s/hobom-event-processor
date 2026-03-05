@@ -4,26 +4,32 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"strings"
 	"time"
 
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/message/outbox/v1"
+	spacePb "github.com/HoBom-s/hobom-event-processor/infra/grpc/space/outbox/v1"
 	"github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	"github.com/HoBom-s/hobom-event-processor/infra/redis"
+	poller "github.com/HoBom-s/hobom-event-processor/internal/poller"
 	"github.com/HoBom-s/hobom-event-processor/pkg/utils"
 )
 
 type DLQService struct {
-	redisDLQ    redis.DLQStore
-	publisher   publisher.KafkaPublisher
-	patchClient outboxPb.PatchOutboxControllerClient
+	redisDLQ         redis.DLQStore
+	publisher        publisher.KafkaPublisher
+	patchClient      outboxPb.PatchOutboxControllerClient
+	spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient
 }
 
 // NewService creates a DLQService with the given dependencies.
-func NewService(redisDLQ redis.DLQStore, pub publisher.KafkaPublisher, patchClient outboxPb.PatchOutboxControllerClient) *DLQService {
+// spacePatchClient may be nil if the space gRPC connection is not configured.
+func NewService(redisDLQ redis.DLQStore, pub publisher.KafkaPublisher, patchClient outboxPb.PatchOutboxControllerClient, spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient) *DLQService {
 	return &DLQService{
-		redisDLQ:    redisDLQ,
-		publisher:   pub,
-		patchClient: patchClient,
+		redisDLQ:         redisDLQ,
+		publisher:        pub,
+		patchClient:      patchClient,
+		spacePatchClient: spacePatchClient,
 	}
 }
 
@@ -78,11 +84,25 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	if utils.IsEmptyString(eventId) {
 		return fmt.Errorf("invalid DLQ key format")
 	}
-	if _, err := s.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
-		EventId: eventId,
-	}); err != nil {
-		slog.Warn("failed to mark as SENT after DLQ retry", "eventId", eventId, "err", err)
-		return err
+
+	// Space DLQ 이벤트의 경우 hobom-space-backend의 gRPC를 통해 마킹한다.
+	if strings.HasPrefix(key, poller.HoBomSpaceDLQPrefix) {
+		if s.spacePatchClient == nil {
+			return fmt.Errorf("space gRPC connection not available")
+		}
+		if _, err := s.spacePatchClient.PatchOutboxMarkAsSentUseCase(ctx, &spacePb.MarkRequest{
+			EventId: eventId,
+		}); err != nil {
+			slog.Warn("failed to mark space outbox as SENT after DLQ retry", "eventId", eventId, "err", err)
+			return err
+		}
+	} else {
+		if _, err := s.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
+			EventId: eventId,
+		}); err != nil {
+			slog.Warn("failed to mark as SENT after DLQ retry", "eventId", eventId, "err", err)
+			return err
+		}
 	}
 
 	// DLQ를 제거하도록 한다.

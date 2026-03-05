@@ -54,6 +54,22 @@ func main() {
 	}
 	defer conn.Close()
 
+	// 1-1. Connect space gRPC (optional — hobom-space-backend)
+	var spaceConn *grpc.ClientConn
+	if spaceAddr := os.Getenv("HOBOM_SPACE_GRPC_ADDR"); spaceAddr != "" {
+		spaceConn, err = grpc.NewClient(
+			spaceAddr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithUnaryInterceptor(apiKeyInterceptor),
+		)
+		if err != nil {
+			slog.Error("failed to connect to space gRPC", "err", err)
+			os.Exit(1)
+		}
+		defer spaceConn.Close()
+		slog.Info("space gRPC connected", "addr", spaceAddr)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -70,12 +86,12 @@ func main() {
 	)
 
 	// 4. Start polling ( Background )
-	wg := poller.StartAllPollers(ctx, conn, kafkaPublisher, rc)
+	wg := poller.StartAllPollers(ctx, conn, spaceConn, kafkaPublisher, rc)
 
 	// 5. Start Gin server
 	router := gin.Default()
 	health.RegisterRoutes(router)
-	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn)
+	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn)
 	httpAddr := envOrDefault("HOBOM_HTTP_ADDR", ":8082")
 	server := &http.Server{
 		Addr:    httpAddr,
