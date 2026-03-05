@@ -57,10 +57,22 @@ func main() {
 	// 1-1. Connect space gRPC (optional — hobom-space-backend)
 	var spaceConn *grpc.ClientConn
 	if spaceAddr := os.Getenv("HOBOM_SPACE_GRPC_ADDR"); spaceAddr != "" {
+		spaceApiKey := envOrDefault("HOBOM_SPACE_GRPC_API_KEY", grpcApiKey)
+		spaceApiKeyInterceptor := func(
+			ctx context.Context,
+			method string,
+			req, reply any,
+			cc *grpc.ClientConn,
+			invoker grpc.UnaryInvoker,
+			opts ...grpc.CallOption,
+		) error {
+			ctx = metadata.AppendToOutgoingContext(ctx, "x-api-key", spaceApiKey)
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
 		spaceConn, err = grpc.NewClient(
 			spaceAddr,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithUnaryInterceptor(apiKeyInterceptor),
+			grpc.WithUnaryInterceptor(spaceApiKeyInterceptor),
 		)
 		if err != nil {
 			slog.Error("failed to connect to space gRPC", "err", err)
