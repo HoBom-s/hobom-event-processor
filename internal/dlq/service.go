@@ -86,7 +86,7 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	}
 
 	// Space DLQ 이벤트의 경우 hobom-space-backend의 gRPC를 통해 마킹한다.
-	if strings.HasPrefix(key, poller.HoBomSpaceDLQPrefix) {
+	if strings.HasPrefix(key, poller.HoBomSpaceLogDLQPrefix) || strings.HasPrefix(key, poller.HoBomSpaceDLQPrefix) {
 		if s.spacePatchClient == nil {
 			return fmt.Errorf("space gRPC connection not available")
 		}

@@ -12,6 +12,7 @@ var allowedPrefixes = []string{
 	poller.HoBomTodayMenuDLQPrefix,
 	poller.HoBomLogDLQPrefix,
 	poller.HoBomSpaceDLQPrefix,
+	poller.HoBomSpaceLogDLQPrefix,
 }
 
 // inferTopicFromKey maps a DLQ key to its Kafka topic.
@@ -21,6 +22,8 @@ func inferTopicFromKey(key string) (string, error) {
 	case strings.HasPrefix(key, poller.HoBomTodayMenuDLQPrefix):
 		return poller.HoBomMessage, nil
 	case strings.HasPrefix(key, poller.HoBomLogDLQPrefix):
+		return poller.HoBomLog, nil
+	case strings.HasPrefix(key, poller.HoBomSpaceLogDLQPrefix):
 		return poller.HoBomLog, nil
 	case strings.HasPrefix(key, poller.HoBomSpaceDLQPrefix):
 		return poller.HoBomSpaceEvents, nil

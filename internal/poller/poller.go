@@ -30,6 +30,7 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc
 	}
 	if spaceConn != nil {
 		pollers = append(pollers, NewSpacePoller(spaceConn, kafkaPublisher, dlqStore))
+		pollers = append(pollers, NewSpaceLogPoller(spaceConn, kafkaPublisher, dlqStore))
 	}
 
 	var wg sync.WaitGroup
