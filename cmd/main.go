@@ -82,6 +82,34 @@ func main() {
 		slog.Info("space gRPC connected", "addr", spaceAddr)
 	}
 
+	// 1-2. Connect LLM gRPC (optional — hobom-llm-service-backend)
+	var llmConn *grpc.ClientConn
+	if llmAddr := os.Getenv("HOBOM_LLM_GRPC_ADDR"); llmAddr != "" {
+		llmApiKey := envOrDefault("HOBOM_LLM_GRPC_API_KEY", grpcApiKey)
+		llmApiKeyInterceptor := func(
+			ctx context.Context,
+			method string,
+			req, reply any,
+			cc *grpc.ClientConn,
+			invoker grpc.UnaryInvoker,
+			opts ...grpc.CallOption,
+		) error {
+			ctx = metadata.AppendToOutgoingContext(ctx, "x-api-key", llmApiKey)
+			return invoker(ctx, method, req, reply, cc, opts...)
+		}
+		llmConn, err = grpc.NewClient(
+			llmAddr,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithUnaryInterceptor(llmApiKeyInterceptor),
+		)
+		if err != nil {
+			slog.Error("failed to connect to LLM gRPC", "err", err)
+			os.Exit(1)
+		}
+		defer llmConn.Close()
+		slog.Info("LLM gRPC connected", "addr", llmAddr)
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -98,7 +126,7 @@ func main() {
 	)
 
 	// 4. Start polling ( Background )
-	wg := poller.StartAllPollers(ctx, conn, spaceConn, kafkaPublisher, rc)
+	wg := poller.StartAllPollers(ctx, conn, spaceConn, llmConn, kafkaPublisher, rc)
 
 	// 5. Start Gin server
 	router := gin.Default()

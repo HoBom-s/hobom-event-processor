@@ -23,7 +23,8 @@ type Poller interface {
 // Callers must cancel ctx then call wg.Wait() to ensure all in-flight poll cycles complete
 // before shutting down.
 // spaceConn is optional — if nil, the space poller is not started.
-func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
+// llmConn is optional — if nil, the law poller is not started.
+func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
 	pollers := []Poller{
 		NewMessagePoller(conn, kafkaPublisher, dlqStore),
 		NewLogPoller(conn, kafkaPublisher, dlqStore),
@@ -31,6 +32,9 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc
 	if spaceConn != nil {
 		pollers = append(pollers, NewSpacePoller(spaceConn, kafkaPublisher, dlqStore))
 		pollers = append(pollers, NewSpaceLogPoller(spaceConn, kafkaPublisher, dlqStore))
+	}
+	if llmConn != nil {
+		pollers = append(pollers, NewLawPoller(conn, llmConn, dlqStore))
 	}
 
 	var wg sync.WaitGroup

@@ -11,6 +11,8 @@ const (
 	EventTypeSpaceEvent = "SPACE_EVENT"
 	// EventTypeSpaceLog is the outbox event type for space API request logs.
 	EventTypeSpaceLog = "SPACE_LOG"
+	// EventTypeLawChanged is the outbox event type for privacy law change events.
+	EventTypeLawChanged = "LAW_CHANGED"
 
 	// OutboxPending is the initial state of an outbox event awaiting dispatch.
 	OutboxPending = "PENDING"
@@ -40,6 +42,8 @@ const (
 	HoBomSpaceDLQPrefix = "dlq:space:"
 	// HoBomSpaceLogDLQPrefix is the Redis key prefix for space-log DLQ entries.
 	HoBomSpaceLogDLQPrefix = "dlq:space-log:"
+	// HoBomLawDLQPrefix is the Redis key prefix for law-event DLQ entries.
+	HoBomLawDLQPrefix = "dlq:law:"
 
 	// TTL72Hours is the retention period for DLQ entries.
 	TTL72Hours = 72 * time.Hour
