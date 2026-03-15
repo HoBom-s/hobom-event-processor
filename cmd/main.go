@@ -84,7 +84,10 @@ func main() {
 
 	// --- Infra clients ---
 	kafkaPublisher := publisher.NewKafkaPublisher(publisher.DefaultKafkaConfig([]string{mustEnv("HOBOM_KAFKA_BROKER")}))
-	rdb := redis.NewClient(&redis.Options{Addr: mustEnv("HOBOM_REDIS_ADDR")})
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     mustEnv("HOBOM_REDIS_ADDR"),
+		Password: os.Getenv("HOBOM_REDIS_PASSWORD"),
+	})
 	rc := redisClient.NewRedisDLQStore(rdb)
 
 	// --- Background pollers ---
