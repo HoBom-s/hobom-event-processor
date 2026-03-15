@@ -2,6 +2,7 @@ package poller
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"sync"
 	"time"
@@ -11,12 +12,15 @@ import (
 	"google.golang.org/grpc"
 )
 
-const pollingInterval = 5 * time.Second
+const (
+	pollingInterval    = 5 * time.Second
+	maxBackoffInterval = 60 * time.Second
+)
 
 // Poller is the interface implemented by all event pollers.
-// Poll executes a single polling cycle and returns when complete.
+// Poll executes a single polling cycle and returns an error on failure.
 type Poller interface {
-	Poll(ctx context.Context)
+	Poll(ctx context.Context) error
 }
 
 // StartAllPollers starts all pollers in background goroutines and returns a WaitGroup.
@@ -43,21 +47,49 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc
 		p := p
 		go func() {
 			defer wg.Done()
-			ticker := time.NewTicker(pollingInterval)
-			defer ticker.Stop()
-			for {
-				select {
-				case <-ticker.C:
-					pollCtx, pollCancel := context.WithTimeout(ctx, 30*time.Second)
-					p.Poll(pollCtx)
-					pollCancel()
-				case <-ctx.Done():
-					return
-				}
-			}
+			runPoller(ctx, p)
 		}()
 	}
 
 	slog.Info("all pollers started")
 	return &wg
+}
+
+func runPoller(ctx context.Context, p Poller) {
+	ticker := time.NewTicker(pollingInterval)
+	defer ticker.Stop()
+
+	consecutiveFailures := 0
+
+	for {
+		select {
+		case <-ticker.C:
+			traceID := fmt.Sprintf("%x", time.Now().UnixNano())
+			slog.Debug("poll cycle start", "traceId", traceID)
+
+			pollCtx, pollCancel := context.WithTimeout(ctx, 30*time.Second)
+			err := p.Poll(pollCtx)
+			pollCancel()
+
+			if err != nil {
+				consecutiveFailures++
+				backoff := pollingInterval * time.Duration(1<<min(consecutiveFailures, 4))
+				if backoff > maxBackoffInterval {
+					backoff = maxBackoffInterval
+				}
+				slog.Error("poll cycle failed", "traceId", traceID, "consecutiveFailures", consecutiveFailures, "nextBackoff", backoff, "err", err)
+				ticker.Reset(backoff)
+			} else {
+				if consecutiveFailures > 0 {
+					slog.Info("poll cycle recovered", "traceId", traceID, "previousFailures", consecutiveFailures)
+				}
+				consecutiveFailures = 0
+				ticker.Reset(pollingInterval)
+			}
+
+			slog.Debug("poll cycle end", "traceId", traceID)
+		case <-ctx.Done():
+			return
+		}
+	}
 }

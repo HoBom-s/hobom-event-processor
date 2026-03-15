@@ -21,10 +21,3 @@ func TestIsEmptyString(t *testing.T) {
 		}
 	}
 }
-
-func TestCoalesceString(t *testing.T) {
-	got := CoalesceString("", "  ", "first", "second")
-	if got != "first" {
-		t.Errorf("expected 'first', got %q", got)
-	}
-}

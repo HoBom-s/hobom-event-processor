@@ -32,21 +32,21 @@ func NewSpacePoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, r
 // gRPC 통신을 통해 hobom-space-backend 서버의 Outbox DB를 polling 하도록 한다.
 // Space 문서 이벤트(페이지 생성/수정/삭제, 댓글 생성 등)를 Kafka로 발행한다.
 // EventType이 `SPACE_EVENT`이고, Outbox Status가 `PENDING`인 것을 가져오도록 한다.
-func (p *spacePoller) Poll(ctx context.Context) {
+func (p *spacePoller) Poll(ctx context.Context) error {
 	req := &spacePb.Request{
-		EventType: EventTypeSpaceEvent,
-		Status:    OutboxPending,
+		EventType: EventTypeSpaceEvent.String(),
+		Status:    OutboxPending.String(),
 	}
 
 	res, err := p.findClient.FindOutboxByEventTypeAndStatusUseCase(ctx, req)
 	if err != nil {
-		slog.Error("failed to fetch space outbox", "err", err)
-		return
+		return fmt.Errorf("failed to fetch space outbox: %w", err)
 	}
 
 	for _, item := range res.Items {
 		p.handleSpaceEvent(ctx, item)
 	}
+	return nil
 }
 
 func (p *spacePoller) handleSpaceEvent(ctx context.Context, item *spacePb.QueryResult) {
@@ -78,18 +78,21 @@ func (p *spacePoller) handleSpaceEvent(ctx context.Context, item *spacePb.QueryR
 		return
 	}
 
-	p.markAsSent(ctx, item.EventId)
+	if err := p.markAsSent(ctx, item.EventId); err != nil {
+		slog.Warn("published but failed to mark space as SENT", "eventId", item.EventId, "err", err)
+	}
 }
 
 // gRPC 통신을 통해, hobom-space-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
 // Outbox DB에 `SENT` 상태로 업데이트를 한다.
-func (p *spacePoller) markAsSent(ctx context.Context, eventId string) {
+func (p *spacePoller) markAsSent(ctx context.Context, eventId string) error {
 	slog.Info("marking space outbox as SENT", "eventId", eventId)
 	if _, err := p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &spacePb.MarkRequest{
 		EventId: eventId,
 	}); err != nil {
-		slog.Error("failed to mark space outbox as SENT", "eventId", eventId, "err", err)
+		return fmt.Errorf("failed to mark space outbox as SENT: %w", err)
 	}
+	return nil
 }
 
 // gRPC 통신을 통해, hobom-space-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.

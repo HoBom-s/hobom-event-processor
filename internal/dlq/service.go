@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
-	"strings"
 	"time"
 
 	lawOutboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/outbox/v1"
@@ -15,7 +14,6 @@ import (
 	spacePb "github.com/HoBom-s/hobom-event-processor/infra/grpc/space/outbox/v1"
 	"github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	"github.com/HoBom-s/hobom-event-processor/infra/redis"
-	poller "github.com/HoBom-s/hobom-event-processor/internal/poller"
 	"github.com/HoBom-s/hobom-event-processor/pkg/utils"
 )
 
@@ -74,17 +72,25 @@ func (s *DLQService) GetDLQValue(ctx context.Context, key string) ([]byte, error
 // LLM generate → save → mark SENT orchestration. For all other events, it
 // republishes to Kafka and marks the outbox as SENT.
 func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
+	k, err := ParseDLQKey(key)
+	if err != nil {
+		return fmt.Errorf("invalid DLQ key: %w", err)
+	}
+	if !k.Valid() {
+		return fmt.Errorf("invalid DLQ key format")
+	}
+
 	data, err := s.redisDLQ.Get(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to get DLQ: %w", err)
 	}
 
 	// Law events bypass Kafka — re-execute the orchestration flow.
-	if strings.HasPrefix(key, poller.HoBomLawDLQPrefix) {
-		return s.retryLawEvent(ctx, key, data)
+	if k.IsLawKey() {
+		return s.retryLawEvent(ctx, k, data)
 	}
 
-	topic, err := inferTopicFromKey(key)
+	topic, err := k.Topic()
 	if err != nil {
 		return fmt.Errorf("invalid DLQ key: %w", err)
 	}
@@ -97,27 +103,22 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to publish: %w", err)
 	}
 
-	eventId := extractEventIdFromKey(key)
-	if utils.IsEmptyString(eventId) {
-		return fmt.Errorf("invalid DLQ key format")
-	}
-
 	// Space DLQ 이벤트의 경우 hobom-space-backend의 gRPC를 통해 마킹한다.
-	if strings.HasPrefix(key, poller.HoBomSpaceLogDLQPrefix) || strings.HasPrefix(key, poller.HoBomSpaceDLQPrefix) {
+	if k.IsSpaceKey() {
 		if s.spacePatchClient == nil {
 			return fmt.Errorf("space gRPC connection not available")
 		}
 		if _, err := s.spacePatchClient.PatchOutboxMarkAsSentUseCase(ctx, &spacePb.MarkRequest{
-			EventId: eventId,
+			EventId: k.EventID,
 		}); err != nil {
-			slog.Warn("failed to mark space outbox as SENT after DLQ retry", "eventId", eventId, "err", err)
+			slog.Warn("failed to mark space outbox as SENT after DLQ retry", "eventId", k.EventID, "err", err)
 			return err
 		}
 	} else {
 		if _, err := s.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
-			EventId: eventId,
+			EventId: k.EventID,
 		}); err != nil {
-			slog.Warn("failed to mark as SENT after DLQ retry", "eventId", eventId, "err", err)
+			slog.Warn("failed to mark as SENT after DLQ retry", "eventId", k.EventID, "err", err)
 			return err
 		}
 	}
@@ -129,7 +130,7 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	return nil
 }
 
-func (s *DLQService) retryLawEvent(ctx context.Context, key string, data []byte) error {
+func (s *DLQService) retryLawEvent(ctx context.Context, k DLQKey, data []byte) error {
 	if s.llmClient == nil || s.saveClient == nil {
 		return fmt.Errorf("LLM gRPC connection not available for law DLQ retry")
 	}
@@ -140,14 +141,17 @@ func (s *DLQService) retryLawEvent(ctx context.Context, key string, data []byte)
 	}
 
 	// 1. LLM gRPC: generate study material
-	changes := make([]*llmPb.ArticleChange, len(payload.Changes))
-	for i, c := range payload.Changes {
-		changes[i] = &llmPb.ArticleChange{
+	var changes []*llmPb.ArticleChange
+	for _, c := range payload.Changes {
+		if c == nil {
+			continue
+		}
+		changes = append(changes, &llmPb.ArticleChange{
 			ArticleNo:  c.ArticleNo,
 			ChangeType: c.ChangeType,
 			Before:     c.Before,
 			After:      c.After,
-		}
+		})
 	}
 
 	llmRes, err := s.llmClient.Generate(ctx, &llmPb.StudyMaterialRequest{
@@ -179,19 +183,15 @@ func (s *DLQService) retryLawEvent(ctx context.Context, key string, data []byte)
 	}
 
 	// 3. Mark outbox as SENT
-	eventId := extractEventIdFromKey(key)
-	if utils.IsEmptyString(eventId) {
-		return fmt.Errorf("invalid DLQ key format")
-	}
 	if _, err = s.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
-		EventId: eventId,
+		EventId: k.EventID,
 	}); err != nil {
 		return fmt.Errorf("failed to mark law outbox as SENT: %w", err)
 	}
 
 	// 4. Delete DLQ entry
-	if err := s.redisDLQ.Delete(ctx, key); err != nil {
-		slog.Warn("failed to delete law DLQ after retry", "key", key, "err", err)
+	if err := s.redisDLQ.Delete(ctx, k.String()); err != nil {
+		slog.Warn("failed to delete law DLQ after retry", "key", k.String(), "err", err)
 	}
 
 	return nil

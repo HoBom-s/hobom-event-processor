@@ -217,16 +217,12 @@ func TestRetryDLQ_KeyNotFound(t *testing.T) {
 	}
 }
 
-func TestRetryDLQ_EmptyEventId_ReturnsError(t *testing.T) {
-	store := newMockDLQStore()
-	// Trailing colon produces an empty event ID after parsing.
-	store.data["dlq:menu:"] = []byte(`{}`)
-
-	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
-	err := svc.RetryDLQ(context.Background(), "dlq:menu:")
+func TestRetryDLQ_InvalidKey_ReturnsError(t *testing.T) {
+	svc := NewService(newMockDLQStore(), &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
+	err := svc.RetryDLQ(context.Background(), "invalid-key")
 
 	if err == nil {
-		t.Fatal("expected error for empty event ID, got nil")
+		t.Fatal("expected error for invalid key, got nil")
 	}
 }
 

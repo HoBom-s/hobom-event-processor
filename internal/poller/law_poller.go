@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log/slog"
+	"time"
 
 	lawOutboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/outbox/v1"
 	lawPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/v1"
@@ -15,11 +16,11 @@ import (
 )
 
 type lawPoller struct {
-	findClient    lawOutboxPb.FindHoBomLawOutboxControllerClient
-	patchClient   patchPb.PatchOutboxControllerClient
-	llmClient     llmPb.StudyMaterialServiceClient
-	saveClient    lawPb.SaveStudyMaterialControllerClient
-	redisDLQ      redisClient.DLQStore
+	findClient  lawOutboxPb.FindHoBomLawOutboxControllerClient
+	patchClient patchPb.PatchOutboxControllerClient
+	llmClient   llmPb.StudyMaterialServiceClient
+	saveClient  lawPb.SaveStudyMaterialControllerClient
+	redisDLQ    redisClient.DLQStore
 }
 
 // NewLawPoller creates a poller that orchestrates privacy-law study material generation.
@@ -36,21 +37,21 @@ func NewLawPoller(conn *grpc.ClientConn, llmConn *grpc.ClientConn, redisDLQ redi
 	}
 }
 
-func (p *lawPoller) Poll(ctx context.Context) {
+func (p *lawPoller) Poll(ctx context.Context) error {
 	req := &lawOutboxPb.Request{
-		EventType: EventTypeLawChanged,
-		Status:    OutboxPending,
+		EventType: EventTypeLawChanged.String(),
+		Status:    OutboxPending.String(),
 	}
 
 	res, err := p.findClient.FindOutboxByEventTypeAndStatusUseCase(ctx, req)
 	if err != nil {
-		slog.Error("failed to fetch law outbox", "err", err)
-		return
+		return fmt.Errorf("failed to fetch law outbox: %w", err)
 	}
 
 	for _, item := range res.Items {
 		p.handleLawChanged(ctx, item)
 	}
+	return nil
 }
 
 func (p *lawPoller) handleLawChanged(ctx context.Context, item *lawOutboxPb.QueryResult) {
@@ -61,19 +62,27 @@ func (p *lawPoller) handleLawChanged(ctx context.Context, item *lawOutboxPb.Quer
 		return
 	}
 
-	// 1. LLM gRPC 호출: 변경 조문으로 학습자료 생성
-	changes := make([]*llmPb.ArticleChange, len(payload.Changes))
-	for i, c := range payload.Changes {
-		changes[i] = &llmPb.ArticleChange{
+	// 1. LLM gRPC 호출: 변경 조문으로 학습자료 생성 (with retry)
+	var changes []*llmPb.ArticleChange
+	for _, c := range payload.Changes {
+		if c == nil {
+			continue
+		}
+		changes = append(changes, &llmPb.ArticleChange{
 			ArticleNo:  c.ArticleNo,
 			ChangeType: c.ChangeType,
 			Before:     c.Before,
 			After:      c.After,
-		}
+		})
 	}
 
-	llmRes, err := p.llmClient.Generate(ctx, &llmPb.StudyMaterialRequest{
-		Changes: changes,
+	var llmRes *llmPb.StudyMaterialResponse
+	err := retryWithBackoff(ctx, 3, 500*time.Millisecond, func() error {
+		var genErr error
+		llmRes, genErr = p.llmClient.Generate(ctx, &llmPb.StudyMaterialRequest{
+			Changes: changes,
+		})
+		return genErr
 	})
 	if err != nil {
 		slog.Error("LLM generate failed", "eventId", item.EventId, "err", err)
@@ -107,16 +116,19 @@ func (p *lawPoller) handleLawChanged(ctx context.Context, item *lawOutboxPb.Quer
 	}
 
 	// 3. outbox SENT 마킹
-	p.markAsSent(ctx, item.EventId)
+	if err := p.markAsSent(ctx, item.EventId); err != nil {
+		slog.Warn("saved study material but failed to mark law as SENT", "eventId", item.EventId, "err", err)
+	}
 }
 
-func (p *lawPoller) markAsSent(ctx context.Context, eventId string) {
+func (p *lawPoller) markAsSent(ctx context.Context, eventId string) error {
 	slog.Info("marking law outbox as SENT", "eventId", eventId)
 	if _, err := p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &patchPb.MarkRequest{
 		EventId: eventId,
 	}); err != nil {
-		slog.Error("failed to mark law outbox as SENT", "eventId", eventId, "err", err)
+		return fmt.Errorf("failed to mark law outbox as SENT: %w", err)
 	}
+	return nil
 }
 
 func (p *lawPoller) markAsFailed(ctx context.Context, eventId, reason string) {

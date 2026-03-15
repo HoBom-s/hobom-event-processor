@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 )
@@ -56,14 +57,17 @@ func TestPublishWithRetry_AllAttemptsFail(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected error, got nil")
 	}
+	if !errors.Is(err, wantErr) {
+		t.Errorf("expected wrapped error to contain %v, got %v", wantErr, err)
+	}
 	if pub.callCount != 3 {
 		t.Errorf("expected exactly 3 attempts (maxAttempts), got %d", pub.callCount)
 	}
 }
 
-func TestPublishWithRetry_ContextCancelledBetweenRetries(t *testing.T) {
+func TestPublishWithRetry_ContextCancelledBeforeFirstAttempt(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
-	cancel() // already cancelled before first call
+	cancel()
 
 	pub := &mockPublisher{failUntil: 99, failErr: errors.New("err")}
 	err := publishWithRetry(ctx, pub, publisher.Event{Topic: "test"})
@@ -71,8 +75,75 @@ func TestPublishWithRetry_ContextCancelledBetweenRetries(t *testing.T) {
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("expected context.Canceled, got %v", err)
 	}
-	// First publish attempt is always made; context is checked between retries.
-	if pub.callCount != 1 {
-		t.Errorf("expected 1 call before context cancel, got %d", pub.callCount)
+	if pub.callCount != 0 {
+		t.Errorf("expected 0 calls when context is pre-cancelled, got %d", pub.callCount)
+	}
+}
+
+// --- retryWithBackoff ---
+
+func TestRetryWithBackoff_SuccessFirstAttempt(t *testing.T) {
+	calls := 0
+	err := retryWithBackoff(context.Background(), 3, time.Millisecond, func() error {
+		calls++
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
+	if calls != 1 {
+		t.Errorf("expected 1 call, got %d", calls)
+	}
+}
+
+func TestRetryWithBackoff_SuccessOnLastAttempt(t *testing.T) {
+	calls := 0
+	err := retryWithBackoff(context.Background(), 3, time.Millisecond, func() error {
+		calls++
+		if calls < 3 {
+			return errors.New("fail")
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("expected nil, got %v", err)
+	}
+	if calls != 3 {
+		t.Errorf("expected 3 calls, got %d", calls)
+	}
+}
+
+func TestRetryWithBackoff_AllFail(t *testing.T) {
+	underlying := errors.New("always fails")
+	calls := 0
+	err := retryWithBackoff(context.Background(), 2, time.Millisecond, func() error {
+		calls++
+		return underlying
+	})
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if !errors.Is(err, underlying) {
+		t.Errorf("expected wrapped error to contain %v, got %v", underlying, err)
+	}
+	if calls != 2 {
+		t.Errorf("expected 2 calls, got %d", calls)
+	}
+}
+
+func TestRetryWithBackoff_ContextCancelled(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	calls := 0
+	err := retryWithBackoff(ctx, 3, time.Millisecond, func() error {
+		calls++
+		return errors.New("fail")
+	})
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("expected context.Canceled, got %v", err)
+	}
+	if calls != 0 {
+		t.Errorf("expected 0 calls with pre-cancelled context, got %d", calls)
 	}
 }

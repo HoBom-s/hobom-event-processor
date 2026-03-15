@@ -9,6 +9,7 @@ import (
 	"syscall"
 	"time"
 
+	grpcConn "github.com/HoBom-s/hobom-event-processor/infra/grpc"
 	publisher "github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
 	redisClient "github.com/HoBom-s/hobom-event-processor/infra/redis"
 	"github.com/HoBom-s/hobom-event-processor/internal/dlq"
@@ -18,8 +19,6 @@ import (
 	"github.com/joho/godotenv"
 	redis "github.com/redis/go-redis/v9"
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 )
 
 func main() {
@@ -31,23 +30,7 @@ func main() {
 	grpcAddr := mustEnv("HOBOM_GRPC_ADDR")
 	grpcApiKey := mustEnv("HOBOM_GRPC_API_KEY")
 
-	apiKeyInterceptor := func(
-		ctx context.Context,
-		method string,
-		req, reply any,
-		cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption,
-	) error {
-		ctx = metadata.AppendToOutgoingContext(ctx, "x-api-key", grpcApiKey)
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
-
-	conn, err := grpc.NewClient(
-		grpcAddr,
-		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithUnaryInterceptor(apiKeyInterceptor),
-	)
+	conn, err := grpcConn.NewConn(grpcAddr, grpcApiKey)
 	if err != nil {
 		slog.Error("failed to connect to gRPC", "err", err)
 		os.Exit(1)
@@ -58,22 +41,7 @@ func main() {
 	var spaceConn *grpc.ClientConn
 	if spaceAddr := os.Getenv("HOBOM_SPACE_GRPC_ADDR"); spaceAddr != "" {
 		spaceApiKey := envOrDefault("HOBOM_SPACE_GRPC_API_KEY", grpcApiKey)
-		spaceApiKeyInterceptor := func(
-			ctx context.Context,
-			method string,
-			req, reply any,
-			cc *grpc.ClientConn,
-			invoker grpc.UnaryInvoker,
-			opts ...grpc.CallOption,
-		) error {
-			ctx = metadata.AppendToOutgoingContext(ctx, "x-api-key", spaceApiKey)
-			return invoker(ctx, method, req, reply, cc, opts...)
-		}
-		spaceConn, err = grpc.NewClient(
-			spaceAddr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithUnaryInterceptor(spaceApiKeyInterceptor),
-		)
+		spaceConn, err = grpcConn.NewConn(spaceAddr, spaceApiKey)
 		if err != nil {
 			slog.Error("failed to connect to space gRPC", "err", err)
 			os.Exit(1)
@@ -86,22 +54,7 @@ func main() {
 	var llmConn *grpc.ClientConn
 	if llmAddr := os.Getenv("HOBOM_LLM_GRPC_ADDR"); llmAddr != "" {
 		llmApiKey := envOrDefault("HOBOM_LLM_GRPC_API_KEY", grpcApiKey)
-		llmApiKeyInterceptor := func(
-			ctx context.Context,
-			method string,
-			req, reply any,
-			cc *grpc.ClientConn,
-			invoker grpc.UnaryInvoker,
-			opts ...grpc.CallOption,
-		) error {
-			ctx = metadata.AppendToOutgoingContext(ctx, "x-api-key", llmApiKey)
-			return invoker(ctx, method, req, reply, cc, opts...)
-		}
-		llmConn, err = grpc.NewClient(
-			llmAddr,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithUnaryInterceptor(llmApiKeyInterceptor),
-		)
+		llmConn, err = grpcConn.NewConn(llmAddr, llmApiKey)
 		if err != nil {
 			slog.Error("failed to connect to LLM gRPC", "err", err)
 			os.Exit(1)
@@ -128,9 +81,10 @@ func main() {
 	wg := poller.StartAllPollers(ctx, conn, spaceConn, llmConn, kafkaPublisher, rc)
 
 	// 5. Start Gin server
+	internalApiKey := os.Getenv("HOBOM_INTERNAL_API_KEY")
 	router := gin.Default()
 	health.RegisterRoutes(router, rdb, conn, spaceConn)
-	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn, llmConn)
+	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn, llmConn, internalApiKey)
 	httpAddr := envOrDefault("HOBOM_HTTP_ADDR", ":8082")
 	server := &http.Server{
 		Addr:    httpAddr,
@@ -151,7 +105,6 @@ func main() {
 	<-quit
 	slog.Info("shutdown signal received")
 
-	// 컨텍스트를 취소하여 폴러가 현재 poll 사이클을 완료 후 종료되도록 한다.
 	cancel()
 
 	done := make(chan struct{})

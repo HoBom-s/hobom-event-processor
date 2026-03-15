@@ -2,24 +2,50 @@ package poller
 
 import "time"
 
+// EventType represents the type of an outbox event.
+type EventType string
+
+func (e EventType) String() string { return string(e) }
+
+func (e EventType) Valid() bool {
+	switch e {
+	case EventTypeHoBomMessage, EventTypeHoBomLog, EventTypeSpaceEvent, EventTypeSpaceLog, EventTypeLawChanged:
+		return true
+	}
+	return false
+}
+
+// OutboxStatus represents the processing state of an outbox event.
+type OutboxStatus string
+
+func (s OutboxStatus) String() string { return string(s) }
+
+func (s OutboxStatus) Valid() bool {
+	switch s {
+	case OutboxPending, OutboxSent, OutboxFailed:
+		return true
+	}
+	return false
+}
+
 const (
 	// EventTypeHoBomMessage is the outbox event type for user-to-user messages.
-	EventTypeHoBomMessage = "MESSAGE"
+	EventTypeHoBomMessage EventType = "MESSAGE"
 	// EventTypeHoBomLog is the outbox event type for API request/response logs.
-	EventTypeHoBomLog = "HOBOM_LOG"
+	EventTypeHoBomLog EventType = "HOBOM_LOG"
 	// EventTypeSpaceEvent is the outbox event type for space document events.
-	EventTypeSpaceEvent = "SPACE_EVENT"
+	EventTypeSpaceEvent EventType = "SPACE_EVENT"
 	// EventTypeSpaceLog is the outbox event type for space API request logs.
-	EventTypeSpaceLog = "SPACE_LOG"
+	EventTypeSpaceLog EventType = "SPACE_LOG"
 	// EventTypeLawChanged is the outbox event type for privacy law change events.
-	EventTypeLawChanged = "LAW_CHANGED"
+	EventTypeLawChanged EventType = "LAW_CHANGED"
 
 	// OutboxPending is the initial state of an outbox event awaiting dispatch.
-	OutboxPending = "PENDING"
+	OutboxPending OutboxStatus = "PENDING"
 	// OutboxSent indicates the event was successfully published to Kafka.
-	OutboxSent = "SENT"
+	OutboxSent OutboxStatus = "SENT"
 	// OutboxFailed indicates the event could not be published after all retries.
-	OutboxFailed = "FAILED"
+	OutboxFailed OutboxStatus = "FAILED"
 
 	// HoBomMessage is the Kafka topic for user-to-user message events.
 	HoBomMessage = "hobom.messages"
