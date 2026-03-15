@@ -5,11 +5,10 @@ PB_DIR := ./infra/grpc
 
 proto:
 	@command -v buf >/dev/null 2>&1 || { echo >&2 "buf CLI not found. Please install: brew install bufbuild/buf/buf"; exit 1; }
-	@echo "Generating proto files from BSR..."
+	rm -rf $(PB_DIR)
 	buf generate $(BSR_MODULE)
-	@echo "Done!"
 
-run: proto
+run:
 	go run ./cmd/main.go
 
 clean:
