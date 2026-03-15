@@ -1,3 +1,11 @@
+// Package dlq provides HTTP endpoints for inspecting and retrying failed
+// events stored in the Redis Dead Letter Queue.
+//
+// These endpoints are internal management APIs, gated by x-api-key auth,
+// and are used by operators to:
+//   - List DLQ entries (optionally filtered by category prefix)
+//   - Inspect the raw payload of a specific DLQ entry
+//   - Retry a failed event (republish to Kafka or re-execute law orchestration)
 package dlq
 
 import (
@@ -7,6 +15,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// --- Response types for consistent JSON structure ---
 
 type DLQListResponse struct {
 	Items []string `json:"items"`
@@ -34,10 +44,13 @@ func NewHandler(service *DLQService) *DLQHandler {
 	}
 }
 
-// `GET` /dlq
-// Redis에 저장된 DLQ 키 목록을 가져온다.
-// prefix가 빈 문자열("") 이라면 모든 DLQ를 조회하도록 한다.
-// ex) ?prefix=dlq:menu: 또는 ?prefix=dlq:log:
+// GetDLQS lists DLQ keys from Redis.
+//
+//	GET /dlq?prefix=dlq:menu:   → keys matching "dlq:menu:*"
+//	GET /dlq                    → all keys matching "dlq:*"
+//
+// The prefix must be one of the allowed DLQ prefixes (dlq:menu:, dlq:log:,
+// dlq:space:, dlq:space-log:, dlq:law:) or empty.
 func (h *DLQHandler) GetDLQS(c *gin.Context) {
 	prefix := c.Query("prefix")
 	if !isValidDLQPrefix(prefix) {
@@ -55,8 +68,11 @@ func (h *DLQHandler) GetDLQS(c *gin.Context) {
 	c.JSON(http.StatusOK, DLQListResponse{Items: keys})
 }
 
-// `GET` /dlq/:key
-// Key값에 해당하는 DLQ를 가져오도록 한다.
+// GetDLQ returns the raw payload for a single DLQ entry.
+//
+//	GET /dlq/:key   (key = full Redis key, e.g. "dlq:menu:evt-abc-123")
+//
+// The raw bytes are unmarshaled to produce pretty JSON in the response.
 func (h *DLQHandler) GetDLQ(c *gin.Context) {
 	key := c.Param("key")
 	if _, err := ParseDLQKey(key); err != nil {
@@ -79,8 +95,15 @@ func (h *DLQHandler) GetDLQ(c *gin.Context) {
 	c.JSON(http.StatusOK, DLQValueResponse{Item: pretty})
 }
 
-// `POST` /dlq/retry/:key
-// DLQ를 재발행 하도록 한다.
+// RetryDLQ retries a failed DLQ event.
+//
+//	POST /dlq/retry/:key
+//
+// Retry strategy depends on the DLQ category:
+//   - menu/log/space/space-log → republish to Kafka + mark SENT + delete DLQ
+//   - law                      → re-execute LLM → save → mark SENT + delete DLQ
+//
+// On success, the DLQ entry is removed from Redis.
 func (h *DLQHandler) RetryDLQ(c *gin.Context) {
 	key := c.Param("key")
 	if _, err := ParseDLQKey(key); err != nil {

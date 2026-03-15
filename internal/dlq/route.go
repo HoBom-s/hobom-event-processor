@@ -13,6 +13,15 @@ import (
 	"google.golang.org/grpc"
 )
 
+// RegisterRoutes mounts the DLQ management endpoints under
+// /hobom-event-processor/internal/api/v1/dlq.
+//
+// All endpoints are protected by APIKeyAuth middleware. When apiKey is empty
+// (local dev), auth is skipped.
+//
+// gRPC clients are created from the provided connections. spaceConn and
+// llmConn may be nil — in that case, DLQ retry for space/law events will
+// return an error explaining the missing connection.
 func RegisterRoutes(router *gin.Engine, redisDLQ *redis.RedisDLQStore, pub publisher.KafkaPublisher, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn, apiKey string) {
 	var spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient
 	if spaceConn != nil {

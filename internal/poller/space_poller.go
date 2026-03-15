@@ -29,9 +29,20 @@ func NewSpacePoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, r
 	}
 }
 
-// gRPC 통신을 통해 hobom-space-backend 서버의 Outbox DB를 polling 하도록 한다.
-// Space 문서 이벤트(페이지 생성/수정/삭제, 댓글 생성 등)를 Kafka로 발행한다.
-// EventType이 `SPACE_EVENT`이고, Outbox Status가 `PENDING`인 것을 가져오도록 한다.
+// Poll fetches PENDING space outbox events from hobom-space-backend and
+// publishes each to the "hobom.space-events" Kafka topic.
+//
+// Unlike LogPoller, space events are published individually (not batched)
+// because each event represents a distinct user action (page create, comment
+// add, etc.) that downstream consumers process independently.
+//
+// Flow per event:
+//
+//	gRPC FindOutbox(SPACE_EVENT, PENDING)
+//	  └─ for each item:
+//	       ├─ build HoBomSpaceEventCommand
+//	       ├─ marshal → publishWithRetry → markAsSent
+//	       └─ on failure: markAsFailed + saveDLQ
 func (p *spacePoller) Poll(ctx context.Context) error {
 	req := &spacePb.Request{
 		EventType: EventTypeSpaceEvent.String(),
@@ -83,8 +94,6 @@ func (p *spacePoller) handleSpaceEvent(ctx context.Context, item *spacePb.QueryR
 	}
 }
 
-// gRPC 통신을 통해, hobom-space-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
-// Outbox DB에 `SENT` 상태로 업데이트를 한다.
 func (p *spacePoller) markAsSent(ctx context.Context, eventId string) error {
 	slog.Info("marking space outbox as SENT", "eventId", eventId)
 	if _, err := p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &spacePb.MarkRequest{
@@ -95,8 +104,6 @@ func (p *spacePoller) markAsSent(ctx context.Context, eventId string) error {
 	return nil
 }
 
-// gRPC 통신을 통해, hobom-space-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
-// Outbox DB에 `FAILED` 상태로 업데이트를 한다.
 func (p *spacePoller) markAsFailed(ctx context.Context, eventId, reason string) {
 	if _, err := p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &spacePb.MarkFailedRequest{
 		EventId:      eventId,

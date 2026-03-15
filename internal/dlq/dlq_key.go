@@ -7,7 +7,16 @@ import (
 	poller "github.com/HoBom-s/hobom-event-processor/internal/poller"
 )
 
-// DLQCategory represents the category segment of a DLQ key (e.g. "menu", "log").
+// DLQCategory represents the category segment of a DLQ key.
+// It identifies which poller originally produced the failed event.
+//
+// Category → Poller origin:
+//
+//	menu      → MessagePoller (for-hobom-backend)
+//	log       → LogPoller (for-hobom-backend)
+//	space     → SpacePoller (hobom-space-backend)
+//	space-log → SpaceLogPoller (hobom-space-backend)
+//	law       → LawPoller (for-hobom-backend + LLM)
 type DLQCategory string
 
 const (
@@ -18,7 +27,13 @@ const (
 	DLQCategoryLaw      DLQCategory = "law"
 )
 
-// DLQKey is a parsed DLQ Redis key with format "dlq:<category>:<event-id>".
+// DLQKey is a parsed DLQ Redis key.
+//
+// Redis key format: "dlq:<category>:<event-id>"
+// Examples:
+//   - "dlq:menu:evt-abc-123"
+//   - "dlq:space-log:evt-xyz-456"
+//   - "dlq:law:evt-789"
 type DLQKey struct {
 	Category DLQCategory
 	EventID  string
@@ -42,7 +57,9 @@ func (k DLQKey) Valid() bool {
 }
 
 // Topic returns the Kafka topic for this DLQ category.
-// Law events have no topic (they bypass Kafka).
+// Used during retry to republish the event to the correct topic.
+// Law events return an empty topic because they bypass Kafka entirely
+// (retry re-executes the LLM → save orchestration instead).
 func (k DLQKey) Topic() (string, error) {
 	switch k.Category {
 	case DLQCategoryMenu:
@@ -59,32 +76,38 @@ func (k DLQKey) Topic() (string, error) {
 }
 
 // IsSpaceKey returns true if this key belongs to space or space-log events.
+// Space events require the hobom-space-backend gRPC connection for marking.
 func (k DLQKey) IsSpaceKey() bool {
 	return k.Category == DLQCategorySpace || k.Category == DLQCategorySpaceLog
 }
 
 // IsLawKey returns true if this key belongs to law events.
+// Law events follow a completely different retry path (LLM → save → mark)
+// instead of Kafka republish.
 func (k DLQKey) IsLawKey() bool {
 	return k.Category == DLQCategoryLaw
 }
 
 // ParseDLQKey parses a raw Redis key string into a DLQKey.
+//
 // Expected format: "dlq:<category>:<event-id>"
-// For compound categories like "space-log", handles the 4-segment case.
+// The compound category "space-log" is handled specially because it contains
+// a hyphen that would otherwise be ambiguous with simple SplitN parsing.
+// Event IDs may contain colons (e.g. UUIDs with custom formats).
 func ParseDLQKey(raw string) (DLQKey, error) {
 	if !strings.HasPrefix(raw, "dlq:") {
 		return DLQKey{}, fmt.Errorf("invalid DLQ key: must start with 'dlq:': %s", raw)
 	}
 
-	// Try compound category "space-log" first (4 segments: dlq:space-log:event-id)
-	// Use SplitN to handle event IDs that might contain colons
 	rest := raw[len("dlq:"):]
+
+	// Check compound category "space-log" first.
 	if strings.HasPrefix(rest, "space-log:") {
 		eventID := rest[len("space-log:"):]
 		return DLQKey{Category: DLQCategorySpaceLog, EventID: eventID}, nil
 	}
 
-	// Simple category: dlq:<category>:<event-id>
+	// Simple category: split on first colon only to preserve colons in event IDs.
 	parts := strings.SplitN(rest, ":", 2)
 	if len(parts) != 2 {
 		return DLQKey{}, fmt.Errorf("invalid DLQ key format: %s", raw)

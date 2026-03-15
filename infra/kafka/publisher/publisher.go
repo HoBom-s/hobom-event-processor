@@ -1,3 +1,13 @@
+// Package publisher provides a Kafka event publishing abstraction.
+//
+// Architecture:
+//   - KafkaPublisher interface is the port (used by pollers and DLQ service).
+//   - kafkaPublisher struct is the adapter (wraps kafka-go Writer).
+//   - Hook interface allows optional extension (logging, metrics) without
+//     modifying core publish logic.
+//
+// All pollers share a single KafkaPublisher instance. The underlying
+// kafka-go Writer is safe for concurrent use.
 package publisher
 
 import (
@@ -17,11 +27,13 @@ type KafkaPublisher interface {
 }
 
 type kafkaPublisher struct {
-	cfg    		KafkaConfig
-	writer 		kafkaWriter
-	hooks  		[]Hook
+	cfg    KafkaConfig
+	writer kafkaWriter
+	hooks  []Hook
 }
 
+// NewKafkaPublisher creates a publisher backed by kafka-go.
+// Optional hooks are called before/after each publish for extensibility.
 func NewKafkaPublisher(cfg KafkaConfig, hooks ...Hook) KafkaPublisher {
 	writer := &kafkaWriterImpl{
 		Writer: &kafka.Writer{
@@ -40,18 +52,19 @@ func NewKafkaPublisher(cfg KafkaConfig, hooks ...Hook) KafkaPublisher {
 	}
 }
 
+// Publish sends a message to Kafka. Hooks are invoked before and after the
+// write. The event.Topic determines which Kafka topic receives the message.
 func (p *kafkaPublisher) Publish(ctx context.Context, event Event) error {
 	for _, hook := range p.hooks {
 		hook.BeforePublish(ctx, event)
 	}
 
-
 	msg := kafka.Message{
-		Key:       []byte(event.Key),
-		Value:     event.Value,
-		Headers:   event.Headers,
-		Time:      event.Timestamp,
-		Topic:     event.Topic,
+		Key:     []byte(event.Key),
+		Value:   event.Value,
+		Headers: event.Headers,
+		Time:    event.Timestamp,
+		Topic:   event.Topic,
 	}
 
 	err := p.writer.WriteMessages(ctx, msg)

@@ -17,6 +17,14 @@ import (
 	"github.com/HoBom-s/hobom-event-processor/pkg/utils"
 )
 
+// DLQService handles DLQ operations: list, get, and retry.
+//
+// Retry delegates to the appropriate strategy based on the DLQ category:
+//   - Kafka events (menu, log, space, space-log): republish → mark SENT → delete
+//   - Law events: LLM generate → save → mark SENT → delete
+//
+// gRPC clients may be nil when the corresponding backend connection is not
+// configured (e.g. spacePatchClient is nil when HOBOM_SPACE_GRPC_ADDR is unset).
 type DLQService struct {
 	redisDLQ         redis.DLQStore
 	publisher        publisher.KafkaPublisher
@@ -26,9 +34,6 @@ type DLQService struct {
 	saveClient       lawPb.SaveStudyMaterialControllerClient
 }
 
-// NewService creates a DLQService with the given dependencies.
-// spacePatchClient may be nil if the space gRPC connection is not configured.
-// llmClient and saveClient may be nil if the LLM gRPC connection is not configured.
 func NewService(
 	redisDLQ redis.DLQStore,
 	pub publisher.KafkaPublisher,
@@ -47,8 +52,8 @@ func NewService(
 	}
 }
 
-// GetDLQS returns all DLQ keys. If prefix is non-empty, only keys with that
-// prefix are returned. An empty prefix matches all dlq:* keys.
+// GetDLQS returns all DLQ keys matching the given prefix.
+// An empty prefix matches all "dlq:*" keys.
 func (s *DLQService) GetDLQS(ctx context.Context, prefix string) ([]string, error) {
 	dlqPrefix := "dlq:*"
 	if !utils.IsEmptyString(prefix) {
@@ -62,15 +67,24 @@ func (s *DLQService) GetDLQS(ctx context.Context, prefix string) ([]string, erro
 	return keys, nil
 }
 
-// GetDLQValue returns the raw payload for the given DLQ key.
-// Returns an error if the key does not exist.
+// GetDLQValue returns the raw payload bytes for the given DLQ key.
 func (s *DLQService) GetDLQValue(ctx context.Context, key string) ([]byte, error) {
 	return s.redisDLQ.Get(ctx, key)
 }
 
-// RetryDLQ retries a failed DLQ event. For law events, this re-executes the
-// LLM generate → save → mark SENT orchestration. For all other events, it
-// republishes to Kafka and marks the outbox as SENT.
+// RetryDLQ retries a failed DLQ event by re-executing the original flow.
+//
+// Retry flow (non-law events):
+//
+//	Redis GET(key) → Kafka Publish(topic) → gRPC MarkAsSent → Redis DELETE(key)
+//
+// Retry flow (law events):
+//
+//	Redis GET(key) → LLM Generate → gRPC SaveStudyMaterial → gRPC MarkAsSent → Redis DELETE(key)
+//
+// The outbox marking target depends on the category:
+//   - space/space-log events → hobom-space-backend (spacePatchClient)
+//   - all others             → for-hobom-backend (patchClient)
 func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	k, err := ParseDLQKey(key)
 	if err != nil {
@@ -85,11 +99,12 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to get DLQ: %w", err)
 	}
 
-	// Law events bypass Kafka — re-execute the orchestration flow.
+	// Law events bypass Kafka — re-execute the full orchestration.
 	if k.IsLawKey() {
 		return s.retryLawEvent(ctx, k, data)
 	}
 
+	// All other events: republish to Kafka.
 	topic, err := k.Topic()
 	if err != nil {
 		return fmt.Errorf("invalid DLQ key: %w", err)
@@ -103,7 +118,7 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to publish: %w", err)
 	}
 
-	// Space DLQ 이벤트의 경우 hobom-space-backend의 gRPC를 통해 마킹한다.
+	// Mark as SENT via the correct backend's gRPC service.
 	if k.IsSpaceKey() {
 		if s.spacePatchClient == nil {
 			return fmt.Errorf("space gRPC connection not available")
@@ -130,6 +145,17 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	return nil
 }
 
+// retryLawEvent re-executes the full law study material pipeline:
+//
+//  1. Unmarshal the DLQ payload back into LawChangedPayload.
+//  2. Call LLM Generate() to produce study material.
+//  3. Save the study material to for-hobom-backend via gRPC.
+//  4. Mark the outbox as SENT.
+//  5. Delete the DLQ entry.
+//
+// Note: Unlike the poller's law flow, DLQ retry does NOT use retryWithBackoff
+// for the LLM call — the operator is already manually retrying, so one attempt
+// with a clear error is more useful than silent retries.
 func (s *DLQService) retryLawEvent(ctx context.Context, k DLQKey, data []byte) error {
 	if s.llmClient == nil || s.saveClient == nil {
 		return fmt.Errorf("LLM gRPC connection not available for law DLQ retry")
@@ -140,7 +166,7 @@ func (s *DLQService) retryLawEvent(ctx context.Context, k DLQKey, data []byte) e
 		return fmt.Errorf("failed to unmarshal law DLQ payload: %w", err)
 	}
 
-	// 1. LLM gRPC: generate study material
+	// Step 1: Build ArticleChange list, skipping nil entries.
 	var changes []*llmPb.ArticleChange
 	for _, c := range payload.Changes {
 		if c == nil {
@@ -154,6 +180,7 @@ func (s *DLQService) retryLawEvent(ctx context.Context, k DLQKey, data []byte) e
 		})
 	}
 
+	// Step 2: Call LLM to generate study material.
 	llmRes, err := s.llmClient.Generate(ctx, &llmPb.StudyMaterialRequest{
 		Changes: changes,
 	})
@@ -161,7 +188,7 @@ func (s *DLQService) retryLawEvent(ctx context.Context, k DLQKey, data []byte) e
 		return fmt.Errorf("LLM generate failed: %w", err)
 	}
 
-	// 2. Save study material to backend
+	// Step 3: Save to backend.
 	quizzes := make([]*lawPb.Quiz, len(llmRes.Quizzes))
 	for i, q := range llmRes.Quizzes {
 		quizzes[i] = &lawPb.Quiz{
@@ -182,14 +209,14 @@ func (s *DLQService) retryLawEvent(ctx context.Context, k DLQKey, data []byte) e
 		return fmt.Errorf("save study material failed: %w", err)
 	}
 
-	// 3. Mark outbox as SENT
+	// Step 4: Mark outbox as SENT.
 	if _, err = s.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
 		EventId: k.EventID,
 	}); err != nil {
 		return fmt.Errorf("failed to mark law outbox as SENT: %w", err)
 	}
 
-	// 4. Delete DLQ entry
+	// Step 5: Delete DLQ entry.
 	if err := s.redisDLQ.Delete(ctx, k.String()); err != nil {
 		slog.Warn("failed to delete law DLQ after retry", "key", k.String(), "err", err)
 	}

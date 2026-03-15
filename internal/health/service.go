@@ -8,10 +8,14 @@ import (
 	"google.golang.org/grpc/connectivity"
 )
 
+// Service defines the health check contract.
 type Service interface {
 	Check(ctx context.Context) HealthStatus
 }
 
+// HealthStatus is the JSON response for the /health endpoint.
+// Status is "healthy" when all components are reachable, "unhealthy" otherwise.
+// Components map shows individual component states for debugging.
 type HealthStatus struct {
 	Status     string            `json:"status"`
 	Components map[string]string `json:"components"`
@@ -31,11 +35,19 @@ func NewService(redisClient *redis.Client, grpcConn *grpc.ClientConn, spaceConn 
 	}
 }
 
+// Check performs health checks against all infrastructure dependencies:
+//
+//  1. Redis — PING command. Unhealthy if PING fails.
+//  2. gRPC (for-hobom-backend) — connection state. Unhealthy if
+//     TransientFailure or Shutdown.
+//  3. gRPC (hobom-space-backend) — same check, skipped if spaceConn is nil.
+//
+// Returns "healthy" only when ALL components are healthy.
+// HTTP handler maps "unhealthy" to 503 Service Unavailable.
 func (s *service) Check(ctx context.Context) HealthStatus {
 	components := make(map[string]string)
 	overall := "healthy"
 
-	// Redis ping
 	if err := s.redisClient.Ping(ctx).Err(); err != nil {
 		components["redis"] = "unhealthy"
 		overall = "unhealthy"
@@ -43,14 +55,12 @@ func (s *service) Check(ctx context.Context) HealthStatus {
 		components["redis"] = "healthy"
 	}
 
-	// gRPC (for-hobom-backend)
 	grpcState := s.grpcConn.GetState()
 	components["grpc"] = grpcState.String()
 	if grpcState == connectivity.TransientFailure || grpcState == connectivity.Shutdown {
 		overall = "unhealthy"
 	}
 
-	// gRPC (hobom-space-backend, optional)
 	if s.spaceConn != nil {
 		spaceState := s.spaceConn.GetState()
 		components["grpc_space"] = spaceState.String()

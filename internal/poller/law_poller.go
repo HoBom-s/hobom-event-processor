@@ -24,9 +24,14 @@ type lawPoller struct {
 }
 
 // NewLawPoller creates a poller that orchestrates privacy-law study material generation.
-// Flow: poll LAW_CHANGED → call LLM gRPC → save result to backend → mark SENT.
-// conn is the for-hobom-backend gRPC connection (find outbox + patch + save study material).
-// llmConn is the hobom-llm-service-backend gRPC connection (generate study material).
+//
+// This poller is unique among the five pollers — it does NOT publish to Kafka.
+// Instead, it calls the LLM service to generate study material and saves the
+// result directly to the backend database.
+//
+// gRPC connections:
+//   - conn    → for-hobom-backend (find outbox, patch status, save study material)
+//   - llmConn → hobom-llm-service-backend (generate study material via LLM)
 func NewLawPoller(conn *grpc.ClientConn, llmConn *grpc.ClientConn, redisDLQ redisClient.DLQStore) Poller {
 	return &lawPoller{
 		findClient:  lawOutboxPb.NewFindHoBomLawOutboxControllerClient(conn),
@@ -37,6 +42,24 @@ func NewLawPoller(conn *grpc.ClientConn, llmConn *grpc.ClientConn, redisDLQ redi
 	}
 }
 
+// Poll fetches PENDING law-changed outbox events and orchestrates the
+// full study material generation pipeline for each.
+//
+// Flow per event:
+//
+//	gRPC FindOutbox(LAW_CHANGED, PENDING)
+//	  └─ for each item:
+//	       ├─ Step 1: Extract ArticleChange list from payload
+//	       ├─ Step 2: Call LLM gRPC Generate() with retryWithBackoff (3x, 500ms)
+//	       │   └─ fail → markAsFailed + saveDLQ
+//	       ├─ Step 3: Call SaveStudyMaterial gRPC to persist to backend DB
+//	       │   └─ fail → markAsFailed + saveDLQ
+//	       └─ Step 4: markAsSent
+//	            └─ fail → log warning (material already saved, no DLQ)
+//
+// Unlike other pollers, failure here is more expensive because the LLM call
+// is slow (~seconds). retryWithBackoff absorbs transient LLM failures before
+// falling back to DLQ.
 func (p *lawPoller) Poll(ctx context.Context) error {
 	req := &lawOutboxPb.Request{
 		EventType: EventTypeLawChanged.String(),
@@ -62,7 +85,7 @@ func (p *lawPoller) handleLawChanged(ctx context.Context, item *lawOutboxPb.Quer
 		return
 	}
 
-	// 1. LLM gRPC 호출: 변경 조문으로 학습자료 생성 (with retry)
+	// Step 1: Build ArticleChange list, skipping nil entries.
 	var changes []*llmPb.ArticleChange
 	for _, c := range payload.Changes {
 		if c == nil {
@@ -76,6 +99,7 @@ func (p *lawPoller) handleLawChanged(ctx context.Context, item *lawOutboxPb.Quer
 		})
 	}
 
+	// Step 2: Call LLM service with retry (500ms → 1s → 2s).
 	var llmRes *llmPb.StudyMaterialResponse
 	err := retryWithBackoff(ctx, 3, 500*time.Millisecond, func() error {
 		var genErr error
@@ -91,7 +115,7 @@ func (p *lawPoller) handleLawChanged(ctx context.Context, item *lawOutboxPb.Quer
 		return
 	}
 
-	// 2. for-hobom-backend에 학습자료 저장 gRPC 호출
+	// Step 3: Save generated study material to backend DB.
 	quizzes := make([]*lawPb.Quiz, len(llmRes.Quizzes))
 	for i, q := range llmRes.Quizzes {
 		quizzes[i] = &lawPb.Quiz{
@@ -115,7 +139,7 @@ func (p *lawPoller) handleLawChanged(ctx context.Context, item *lawOutboxPb.Quer
 		return
 	}
 
-	// 3. outbox SENT 마킹
+	// Step 4: Mark outbox as SENT.
 	if err := p.markAsSent(ctx, item.EventId); err != nil {
 		slog.Warn("saved study material but failed to mark law as SENT", "eventId", item.EventId, "err", err)
 	}

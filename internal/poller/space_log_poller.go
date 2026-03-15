@@ -30,9 +30,15 @@ func NewSpaceLogPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher
 	}
 }
 
-// gRPC 통신을 통해 hobom-space-backend 서버의 Outbox DB를 polling 하도록 한다.
-// hobom-space-backend의 API 요청/응답 로그를 수집하여 hobom.logs Kafka topic으로 발행한다.
-// 기존 log/outbox/v1 proto를 재사용하며, EventType이 `SPACE_LOG`이고 Status가 `PENDING`인 것을 가져온다.
+// Poll fetches PENDING space-log outbox events from hobom-space-backend and
+// publishes them as a batched JSON array to the "hobom.logs" Kafka topic.
+//
+// This poller mirrors LogPoller's batch logic but operates against the
+// hobom-space-backend's outbox (spaceConn). It reuses the log/outbox/v1
+// proto for find (same payload shape) and space/outbox/v1 proto for patch
+// (different backend, different gRPC service).
+//
+// Flow: same as LogPoller — see log_poller.go for detailed flow diagram.
 func (p *spaceLogPoller) Poll(ctx context.Context) error {
 	req := &logPb.Request{
 		EventType: EventTypeSpaceLog.String(),

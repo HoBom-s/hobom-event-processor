@@ -1,3 +1,11 @@
+// Package grpc provides a shared gRPC client connection factory for
+// all outbound gRPC calls in hobom-event-processor.
+//
+// Every connection is configured with:
+//   - API key interceptor: injects x-api-key metadata into every unary RPC,
+//     matching the server-side ApiKeyInterceptor on backend services.
+//   - Transport credentials: TLS if HOBOM_GRPC_TLS_CERT is set, otherwise
+//     insecure plaintext (suitable for Docker internal network).
 package grpc
 
 import (
@@ -11,8 +19,11 @@ import (
 	"google.golang.org/grpc/metadata"
 )
 
-// NewConn creates a gRPC client connection with an API key interceptor.
-// If HOBOM_GRPC_TLS_CERT is set, TLS is enabled; otherwise insecure.
+// NewConn creates a gRPC client connection with API key auth and optional TLS.
+//
+// The apiKey is attached to every outgoing RPC as an "x-api-key" metadata
+// header via a unary interceptor. This authenticates against the backend
+// services' gRPC interceptors (e.g. ApiKeyInterceptor in hobom-space-backend).
 func NewConn(addr, apiKey string) (*grpc.ClientConn, error) {
 	interceptor := func(
 		ctx context.Context,
@@ -33,6 +44,9 @@ func NewConn(addr, apiKey string) (*grpc.ClientConn, error) {
 	)
 }
 
+// transportCredentials returns TLS credentials if HOBOM_GRPC_TLS_CERT is
+// set to a valid PEM file path, otherwise returns insecure credentials.
+// Falls back to insecure on any TLS loading error (with a warning log).
 func transportCredentials() credentials.TransportCredentials {
 	certFile := os.Getenv("HOBOM_GRPC_TLS_CERT")
 	if certFile == "" {
