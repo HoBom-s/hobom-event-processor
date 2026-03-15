@@ -1,0 +1,40 @@
+name: Auto-update proto
+
+on:
+  repository_dispatch:
+    types: [proto-update]
+
+jobs:
+  update-proto:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: develop
+
+      - uses: bufbuild/buf-action@v1
+        with:
+          setup_only: true
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.24"
+
+      - name: Install protoc plugins
+        run: |
+          go install google.golang.org/protobuf/cmd/protoc-gen-go@v1.33.0
+          go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@v1.3.0
+
+      - name: Generate proto
+        run: |
+          rm -rf infra/grpc
+          buf generate buf.build/hobom/hobom-buf-proto
+
+      - name: Create PR if changed
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: chore/proto-update
+          title: "chore: update generated proto files"
+          body: "Auto-generated from hobom-buf-proto BSR update."
+          commit-message: "chore: update generated proto files"
+          delete-branch: true
