@@ -6,5 +6,6 @@ hobomPipeline(
   memory:         '256m',
   cpus:           '0.5',
   envPath:        '/etc/hobom-dev/dev-hobom-event-processor/.env',
-  submodules:     false
+  submodules:     false,
+  extraVolumes:   ['/home/infra-admin/certs:/etc/grpc-tls:ro']
 )
