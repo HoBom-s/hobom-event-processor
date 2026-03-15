@@ -48,7 +48,9 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc
 			for {
 				select {
 				case <-ticker.C:
-					p.Poll(ctx)
+					pollCtx, pollCancel := context.WithTimeout(ctx, 30*time.Second)
+					p.Poll(pollCtx)
+					pollCancel()
 				case <-ctx.Done():
 					return
 				}

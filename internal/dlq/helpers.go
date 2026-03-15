@@ -29,7 +29,7 @@ func inferTopicFromKey(key string) (string, error) {
 	case strings.HasPrefix(key, poller.HoBomSpaceDLQPrefix):
 		return poller.HoBomSpaceEvents, nil
 	case strings.HasPrefix(key, poller.HoBomLawDLQPrefix):
-		return "", fmt.Errorf("law events do not use Kafka — DLQ retry is not supported: %s", key)
+		return "", nil
 	default:
 		return "", fmt.Errorf("unrecognized DLQ key prefix: %s", key)
 	}

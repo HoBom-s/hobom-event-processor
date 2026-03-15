@@ -119,19 +119,18 @@ func main() {
 
 	// 3. RedisClient 생성
 	redisAddr := mustEnv("HOBOM_REDIS_ADDR")
-	rc := redisClient.NewRedisDLQStore(
-		redis.NewClient(&redis.Options{
-			Addr: redisAddr,
-		}),
-	)
+	rdb := redis.NewClient(&redis.Options{
+		Addr: redisAddr,
+	})
+	rc := redisClient.NewRedisDLQStore(rdb)
 
 	// 4. Start polling ( Background )
 	wg := poller.StartAllPollers(ctx, conn, spaceConn, llmConn, kafkaPublisher, rc)
 
 	// 5. Start Gin server
 	router := gin.Default()
-	health.RegisterRoutes(router)
-	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn)
+	health.RegisterRoutes(router, rdb, conn, spaceConn)
+	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn, llmConn)
 	httpAddr := envOrDefault("HOBOM_HTTP_ADDR", ":8082")
 	server := &http.Server{
 		Addr:    httpAddr,
@@ -154,8 +153,19 @@ func main() {
 
 	// 컨텍스트를 취소하여 폴러가 현재 poll 사이클을 완료 후 종료되도록 한다.
 	cancel()
-	wg.Wait()
-	slog.Info("all pollers stopped")
+
+	done := make(chan struct{})
+	go func() {
+		wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		slog.Info("all pollers stopped")
+	case <-time.After(10 * time.Second):
+		slog.Warn("poller shutdown timed out after 10s, forcing exit")
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()

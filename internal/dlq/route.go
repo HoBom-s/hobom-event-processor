@@ -1,6 +1,8 @@
 package dlq
 
 import (
+	lawPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/v1"
+	llmPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/llm/v1"
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/message/outbox/v1"
 	spacePb "github.com/HoBom-s/hobom-event-processor/infra/grpc/space/outbox/v1"
 	"github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
@@ -10,13 +12,20 @@ import (
 	"google.golang.org/grpc"
 )
 
-func RegisterRoutes(router *gin.Engine, redisDLQ *redis.RedisDLQStore, pub publisher.KafkaPublisher, conn *grpc.ClientConn, spaceConn *grpc.ClientConn) {
+func RegisterRoutes(router *gin.Engine, redisDLQ *redis.RedisDLQStore, pub publisher.KafkaPublisher, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn) {
 	var spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient
 	if spaceConn != nil {
 		spacePatchClient = spacePb.NewPatchHoBomSpaceOutboxControllerClient(spaceConn)
 	}
 
-	service := NewService(redisDLQ, pub, outboxPb.NewPatchOutboxControllerClient(conn), spacePatchClient)
+	var llmClient llmPb.StudyMaterialServiceClient
+	var saveClient lawPb.SaveStudyMaterialControllerClient
+	if llmConn != nil {
+		llmClient = llmPb.NewStudyMaterialServiceClient(llmConn)
+		saveClient = lawPb.NewSaveStudyMaterialControllerClient(conn)
+	}
+
+	service := NewService(redisDLQ, pub, outboxPb.NewPatchOutboxControllerClient(conn), spacePatchClient, llmClient, saveClient)
 	handler := NewHandler(service)
 
 	dlq := router.Group(poller.HoBomEventProcessorInternalApiPrefix + "/dlq")

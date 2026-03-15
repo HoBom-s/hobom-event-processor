@@ -2,11 +2,15 @@ package dlq
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
 	"time"
 
+	lawOutboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/outbox/v1"
+	lawPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/v1"
+	llmPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/llm/v1"
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/message/outbox/v1"
 	spacePb "github.com/HoBom-s/hobom-event-processor/infra/grpc/space/outbox/v1"
 	"github.com/HoBom-s/hobom-event-processor/infra/kafka/publisher"
@@ -20,16 +24,28 @@ type DLQService struct {
 	publisher        publisher.KafkaPublisher
 	patchClient      outboxPb.PatchOutboxControllerClient
 	spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient
+	llmClient        llmPb.StudyMaterialServiceClient
+	saveClient       lawPb.SaveStudyMaterialControllerClient
 }
 
 // NewService creates a DLQService with the given dependencies.
 // spacePatchClient may be nil if the space gRPC connection is not configured.
-func NewService(redisDLQ redis.DLQStore, pub publisher.KafkaPublisher, patchClient outboxPb.PatchOutboxControllerClient, spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient) *DLQService {
+// llmClient and saveClient may be nil if the LLM gRPC connection is not configured.
+func NewService(
+	redisDLQ redis.DLQStore,
+	pub publisher.KafkaPublisher,
+	patchClient outboxPb.PatchOutboxControllerClient,
+	spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient,
+	llmClient llmPb.StudyMaterialServiceClient,
+	saveClient lawPb.SaveStudyMaterialControllerClient,
+) *DLQService {
 	return &DLQService{
 		redisDLQ:         redisDLQ,
 		publisher:        pub,
 		patchClient:      patchClient,
 		spacePatchClient: spacePatchClient,
+		llmClient:        llmClient,
+		saveClient:       saveClient,
 	}
 }
 
@@ -54,16 +70,20 @@ func (s *DLQService) GetDLQValue(ctx context.Context, key string) ([]byte, error
 	return s.redisDLQ.Get(ctx, key)
 }
 
-// RetryDLQ republishes the stored event to Kafka, marks the outbox as SENT via
-// gRPC, and removes the key from the DLQ store. Returns an error if any of
-// the first two steps fail; DLQ deletion failure is logged but not returned.
+// RetryDLQ retries a failed DLQ event. For law events, this re-executes the
+// LLM generate → save → mark SENT orchestration. For all other events, it
+// republishes to Kafka and marks the outbox as SENT.
 func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 	data, err := s.redisDLQ.Get(ctx, key)
 	if err != nil {
 		return fmt.Errorf("failed to get DLQ: %w", err)
 	}
 
-	// Event를 재발행 하도록 한다.
+	// Law events bypass Kafka — re-execute the orchestration flow.
+	if strings.HasPrefix(key, poller.HoBomLawDLQPrefix) {
+		return s.retryLawEvent(ctx, key, data)
+	}
+
 	topic, err := inferTopicFromKey(key)
 	if err != nil {
 		return fmt.Errorf("invalid DLQ key: %w", err)
@@ -77,9 +97,6 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 		return fmt.Errorf("failed to publish: %w", err)
 	}
 
-	// Key로부터 EventID를 추출한 후,
-	// gRPC 호출을 통해, Outbox에 발행 상태를 `SENT`로 업데이트 시키도록 한다.
-	// 만약 EventID가 존재하지 않는다면 다음 로직을 수행하지 않도록 한다.
 	eventId := extractEventIdFromKey(key)
 	if utils.IsEmptyString(eventId) {
 		return fmt.Errorf("invalid DLQ key format")
@@ -105,9 +122,76 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 		}
 	}
 
-	// DLQ를 제거하도록 한다.
 	if err := s.redisDLQ.Delete(ctx, key); err != nil {
 		slog.Warn("failed to delete DLQ after retry", "key", key, "err", err)
+	}
+
+	return nil
+}
+
+func (s *DLQService) retryLawEvent(ctx context.Context, key string, data []byte) error {
+	if s.llmClient == nil || s.saveClient == nil {
+		return fmt.Errorf("LLM gRPC connection not available for law DLQ retry")
+	}
+
+	var payload lawOutboxPb.LawChangedPayload
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return fmt.Errorf("failed to unmarshal law DLQ payload: %w", err)
+	}
+
+	// 1. LLM gRPC: generate study material
+	changes := make([]*llmPb.ArticleChange, len(payload.Changes))
+	for i, c := range payload.Changes {
+		changes[i] = &llmPb.ArticleChange{
+			ArticleNo:  c.ArticleNo,
+			ChangeType: c.ChangeType,
+			Before:     c.Before,
+			After:      c.After,
+		}
+	}
+
+	llmRes, err := s.llmClient.Generate(ctx, &llmPb.StudyMaterialRequest{
+		Changes: changes,
+	})
+	if err != nil {
+		return fmt.Errorf("LLM generate failed: %w", err)
+	}
+
+	// 2. Save study material to backend
+	quizzes := make([]*lawPb.Quiz, len(llmRes.Quizzes))
+	for i, q := range llmRes.Quizzes {
+		quizzes[i] = &lawPb.Quiz{
+			Type:        q.Type,
+			Question:    q.Question,
+			Answer:      q.Answer,
+			Explanation: q.Explanation,
+			Choices:     q.Choices,
+		}
+	}
+
+	if _, err = s.saveClient.SaveStudyMaterial(ctx, &lawPb.SaveStudyMaterialRequest{
+		DiffId:    payload.DiffId,
+		Summary:   llmRes.Summary,
+		KeyPoints: llmRes.KeyPoints,
+		Quizzes:   quizzes,
+	}); err != nil {
+		return fmt.Errorf("save study material failed: %w", err)
+	}
+
+	// 3. Mark outbox as SENT
+	eventId := extractEventIdFromKey(key)
+	if utils.IsEmptyString(eventId) {
+		return fmt.Errorf("invalid DLQ key format")
+	}
+	if _, err = s.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPb.MarkRequest{
+		EventId: eventId,
+	}); err != nil {
+		return fmt.Errorf("failed to mark law outbox as SENT: %w", err)
+	}
+
+	// 4. Delete DLQ entry
+	if err := s.redisDLQ.Delete(ctx, key); err != nil {
+		slog.Warn("failed to delete law DLQ after retry", "key", key, "err", err)
 	}
 
 	return nil

@@ -31,5 +31,13 @@ func (s *RedisDLQStore) Delete(ctx context.Context, key string) error {
 }
 
 func (s *RedisDLQStore) List(ctx context.Context, pattern string) ([]string, error) {
-	return s.client.Keys(ctx, pattern).Result()
+	var keys []string
+	iter := s.client.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+	return keys, nil
 }
