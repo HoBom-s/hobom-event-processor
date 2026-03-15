@@ -4,6 +4,10 @@ on:
   repository_dispatch:
     types: [proto-update]
 
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   update-proto:
     runs-on: ubuntu-latest
