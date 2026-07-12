@@ -7,5 +7,7 @@ hobomPipeline(
   cpus:           '0.5',
   envPath:        '/etc/hobom-dev/dev-hobom-event-processor/.env',
   submodules:     false,
-  extraVolumes:   ['/home/infra-admin/certs:/etc/grpc-tls:ro']
+  extraVolumes:   ['/home/infra-admin/certs:/etc/grpc-tls:ro'],
+  liveHostPort:   '18082',
+  liveEnvPath:    '/etc/hobom-live/live-hobom-event-processor/.env'
 )
