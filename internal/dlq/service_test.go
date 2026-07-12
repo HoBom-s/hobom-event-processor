@@ -99,7 +99,7 @@ func TestGetDLQS_NoPrefix_ReturnsAllKeys(t *testing.T) {
 	store.data["dlq:menu:event-1"] = []byte(`{}`)
 	store.data["dlq:log:event-2"] = []byte(`{}`)
 
-	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{})
+	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
 	keys, err := svc.GetDLQS(context.Background(), "")
 
 	if err != nil {
@@ -115,7 +115,7 @@ func TestGetDLQS_WithPrefix_FiltersCorrectly(t *testing.T) {
 	store.data["dlq:menu:event-1"] = []byte(`{}`)
 	store.data["dlq:log:event-2"] = []byte(`{}`)
 
-	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{})
+	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
 	keys, err := svc.GetDLQS(context.Background(), "dlq:menu:")
 
 	if err != nil {
@@ -130,7 +130,7 @@ func TestGetDLQS_StoreError(t *testing.T) {
 	store := newMockDLQStore()
 	store.err = errors.New("redis down")
 
-	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{})
+	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
 	_, err := svc.GetDLQS(context.Background(), "")
 
 	if err == nil {
@@ -144,7 +144,7 @@ func TestGetDLQValue_Found(t *testing.T) {
 	store := newMockDLQStore()
 	store.data["dlq:menu:event-1"] = []byte(`{"type":"MAIL_MESSAGE"}`)
 
-	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{})
+	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
 	data, err := svc.GetDLQValue(context.Background(), "dlq:menu:event-1")
 
 	if err != nil {
@@ -156,7 +156,7 @@ func TestGetDLQValue_Found(t *testing.T) {
 }
 
 func TestGetDLQValue_NotFound(t *testing.T) {
-	svc := NewService(newMockDLQStore(), &mockKafkaPublisher{}, &mockPatchClient{})
+	svc := NewService(newMockDLQStore(), &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
 	_, err := svc.GetDLQValue(context.Background(), "dlq:menu:nonexistent")
 
 	if err == nil {
@@ -172,7 +172,7 @@ func TestRetryDLQ_Success(t *testing.T) {
 	pub := &mockKafkaPublisher{}
 	patch := &mockPatchClient{}
 
-	svc := NewService(store, pub, patch)
+	svc := NewService(store, pub, patch, nil, nil, nil)
 	err := svc.RetryDLQ(context.Background(), "dlq:menu:event-abc")
 
 	if err != nil {
@@ -197,7 +197,7 @@ func TestRetryDLQ_PublishError_DLQPreserved(t *testing.T) {
 	store.data["dlq:menu:event-abc"] = []byte(`{}`)
 	pub := &mockKafkaPublisher{publishErr: errors.New("kafka down")}
 
-	svc := NewService(store, pub, &mockPatchClient{})
+	svc := NewService(store, pub, &mockPatchClient{}, nil, nil, nil)
 	err := svc.RetryDLQ(context.Background(), "dlq:menu:event-abc")
 
 	if err == nil {
@@ -209,7 +209,7 @@ func TestRetryDLQ_PublishError_DLQPreserved(t *testing.T) {
 }
 
 func TestRetryDLQ_KeyNotFound(t *testing.T) {
-	svc := NewService(newMockDLQStore(), &mockKafkaPublisher{}, &mockPatchClient{})
+	svc := NewService(newMockDLQStore(), &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
 	err := svc.RetryDLQ(context.Background(), "dlq:menu:nonexistent")
 
 	if err == nil {
@@ -217,16 +217,12 @@ func TestRetryDLQ_KeyNotFound(t *testing.T) {
 	}
 }
 
-func TestRetryDLQ_EmptyEventId_ReturnsError(t *testing.T) {
-	store := newMockDLQStore()
-	// Trailing colon produces an empty event ID after parsing.
-	store.data["dlq:menu:"] = []byte(`{}`)
-
-	svc := NewService(store, &mockKafkaPublisher{}, &mockPatchClient{})
-	err := svc.RetryDLQ(context.Background(), "dlq:menu:")
+func TestRetryDLQ_InvalidKey_ReturnsError(t *testing.T) {
+	svc := NewService(newMockDLQStore(), &mockKafkaPublisher{}, &mockPatchClient{}, nil, nil, nil)
+	err := svc.RetryDLQ(context.Background(), "invalid-key")
 
 	if err == nil {
-		t.Fatal("expected error for empty event ID, got nil")
+		t.Fatal("expected error for invalid key, got nil")
 	}
 }
 
@@ -235,7 +231,7 @@ func TestRetryDLQ_CorrectTopicForLogKey(t *testing.T) {
 	store.data["dlq:log:event-xyz"] = []byte(`[{"level":"INFO"}]`)
 	pub := &mockKafkaPublisher{}
 
-	svc := NewService(store, pub, &mockPatchClient{})
+	svc := NewService(store, pub, &mockPatchClient{}, nil, nil, nil)
 	err := svc.RetryDLQ(context.Background(), "dlq:log:event-xyz")
 
 	if err != nil {

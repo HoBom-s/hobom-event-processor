@@ -30,19 +30,35 @@ func NewLogPoller(conn *grpc.ClientConn, publisher publisher.KafkaPublisher, red
 	}
 }
 
-// gRPC 통신을 통한 for-hobom-backend 서버의 Outbox DB 를 polling 하도록 한다.
-// 해당 서버를 통과한 API 요청 및 응답에 대한 Log 들을 수집하고, hobom-internal-backend 로 적재하기 위한 데이터를 가지고 있다.
-// EventType이 `HOBOM_LOG` 이고, Outbox Status 가 `PENDING` 인 것을 가져오도록 한다.
-func (p *logPoller) Poll(ctx context.Context) {
+// Poll fetches PENDING log outbox events from for-hobom-backend and publishes
+// them as a single batched JSON array to the "hobom.logs" Kafka topic.
+//
+// Flow:
+//
+//	gRPC FindLogOutbox(HOBOM_LOG, PENDING)
+//	  └─ for each item:
+//	       ├─ convert payload to HoBomLogMessageCommand
+//	       │   └─ fail → markAsFailed, skip this item
+//	       └─ marshal individual entry (for DLQ fallback)
+//	           └─ fail → markAsFailed, skip this item
+//	  └─ if entries collected:
+//	       ├─ marshal all commands as JSON array
+//	       ├─ publishWithRetry to Kafka (key: "hobom-log-<nanos>")
+//	       │   └─ fail → markAsFailed + saveDLQ for each entry
+//	       └─ markAsSent for each entry
+//
+// Batching rationale: Log events are high-volume, low-priority. Batching
+// reduces Kafka round-trips. Each entry is also serialized individually so
+// that DLQ retry can republish a single event without the full batch.
+func (p *logPoller) Poll(ctx context.Context) error {
 	req := &outboxFindPb.Request{
-		EventType: EventTypeHoBomLog,
-		Status:    OutboxPending,
+		EventType: EventTypeHoBomLog.String(),
+		Status:    OutboxPending.String(),
 	}
 
 	res, err := p.findClient.FindLogOutboxByEventTypeAndStatusUseCase(ctx, req)
 	if err != nil {
-		slog.Error("failed to fetch log outbox", "err", err)
-		return
+		return fmt.Errorf("failed to fetch log outbox: %w", err)
 	}
 
 	type logEntry struct {
@@ -73,8 +89,8 @@ func (p *logPoller) Poll(ctx context.Context) {
 			Payload:     payloadMap,
 		}
 
-		// 각 이벤트를 단일 원소 배열로 직렬화한다.
-		// DLQ retry 시 컨슈머가 배치 발행과 동일한 포맷을 수신하도록 보장한다.
+		// Each event is also serialized as a single-element array so that
+		// DLQ retry consumers receive the same format as the batch publish.
 		individualPayload, err := json.Marshal([]HoBomLogMessageCommand{cmd})
 		if err != nil {
 			p.markAsFailed(ctx, item.EventId, fmt.Sprintf("marshal error: %v", err))
@@ -88,12 +104,11 @@ func (p *logPoller) Poll(ctx context.Context) {
 		})
 	}
 
-	// Event를 발행할 Commands (Log)의 길이가 0 일 경우, 아무런 동작도
-	// 수행하지 않도록 한다.
 	if len(entries) == 0 {
-		return
+		return nil
 	}
 
+	// Batch all log commands into a single Kafka message.
 	commands := make([]HoBomLogMessageCommand, len(entries))
 	for i, e := range entries {
 		commands[i] = e.cmd
@@ -105,46 +120,43 @@ func (p *logPoller) Poll(ctx context.Context) {
 		for _, e := range entries {
 			p.markAsFailed(ctx, e.eventId, fmt.Sprintf("marshal error: %v", err))
 		}
-		return
+		return nil
 	}
 
-	// 파티션 분산을 위해 타임스탬프 기반 키를 사용한다.
+	// Use timestamp-based key for partition distribution across brokers.
 	err = publishWithRetry(ctx, p.publisher, publisher.Event{
 		Key:       fmt.Sprintf("hobom-log-%d", time.Now().UnixNano()),
 		Value:     jsonArray,
 		Topic:     HoBomLog,
 		Timestamp: time.Now(),
 	})
-	// Kafka Event발행에 실패했을 경우, gRPC를 통해 Outbox 데이터를 Fail 로 업데이트 하도록 한다.
-	// 그 후, Redis에 DLQ Event를 저장하도록 한다.
 	if err != nil {
 		slog.Error("kafka publish failed for log batch", "count", len(entries), "err", err)
 		for _, e := range entries {
 			p.markAsFailed(ctx, e.eventId, fmt.Sprintf("publish error: %v", err))
 			saveDLQ(p.redisDLQ, ctx, HoBomLogDLQPrefix, e.eventId, e.individualPayload)
 		}
-		return
+		return nil
 	}
 
-	// Mark as SENT only after successful publish
 	for _, e := range entries {
-		p.markAsSent(ctx, e.eventId)
+		if err := p.markAsSent(ctx, e.eventId); err != nil {
+			slog.Warn("published but failed to mark log as SENT", "eventId", e.eventId, "err", err)
+		}
 	}
+	return nil
 }
 
-// gRPC 통신을 통해, for-hobom-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
-// Outbox DB 에 `SENT` 상태로 업데이트를 한다.
-func (p *logPoller) markAsSent(ctx context.Context, eventId string) {
+func (p *logPoller) markAsSent(ctx context.Context, eventId string) error {
 	slog.Info("marking log outbox as SENT", "eventId", eventId)
 	if _, err := p.patchClient.PatchOutboxMarkAsSentUseCase(ctx, &outboxPatchPb.MarkRequest{
 		EventId: eventId,
 	}); err != nil {
-		slog.Error("failed to mark log outbox as SENT", "eventId", eventId, "err", err)
+		return fmt.Errorf("failed to mark log outbox as SENT: %w", err)
 	}
+	return nil
 }
 
-// gRPC 통신을 통해, for-hobom-backend 서버에 Outbox 데이터 업데이트를 위한 통신을 수행하도록 한다.
-// Outbox DB 에 `FAILED` 상태로 업데이트를 한다.
 func (p *logPoller) markAsFailed(ctx context.Context, eventId, reason string) {
 	if _, err := p.patchClient.PatchOutboxMarkAsFailedUseCase(ctx, &outboxPatchPb.MarkFailedRequest{
 		EventId:      eventId,

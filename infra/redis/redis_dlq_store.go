@@ -7,11 +7,13 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
+// RedisDLQStore is the Redis-backed implementation of DLQStore.
+// Uses SET with TTL for Save, GET for retrieval, DEL for deletion,
+// and SCAN for pattern-based listing.
 type RedisDLQStore struct {
 	client *redis.Client
 }
 
-// NewRedisDLQStore creates a Redis-backed DLQStore.
 func NewRedisDLQStore(client *redis.Client) *RedisDLQStore {
 	return &RedisDLQStore{
 		client: client,
@@ -30,6 +32,16 @@ func (s *RedisDLQStore) Delete(ctx context.Context, key string) error {
 	return s.client.Del(ctx, key).Err()
 }
 
+// List uses SCAN (not KEYS) to iterate over matching keys without blocking
+// the Redis server. Count hint is 100 per scan iteration.
 func (s *RedisDLQStore) List(ctx context.Context, pattern string) ([]string, error) {
-	return s.client.Keys(ctx, pattern).Result()
+	var keys []string
+	iter := s.client.Scan(ctx, 0, pattern, 100).Iterator()
+	for iter.Next(ctx) {
+		keys = append(keys, iter.Val())
+	}
+	if err := iter.Err(); err != nil {
+		return nil, err
+	}
+	return keys, nil
 }

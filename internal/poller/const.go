@@ -2,38 +2,80 @@ package poller
 
 import "time"
 
+// EventType represents the type of an outbox event.
+// Each backend service writes events with a specific EventType, and the
+// corresponding poller filters by that type when fetching PENDING events.
+//
+// Mapping:
+//
+//	EventType         → Poller           → Target
+//	MESSAGE           → MessagePoller    → Kafka (hobom.messages)
+//	HOBOM_LOG         → LogPoller        → Kafka (hobom.logs)
+//	SPACE_EVENT       → SpacePoller      → Kafka (hobom.space-events)
+//	SPACE_LOG         → SpaceLogPoller   → Kafka (hobom.logs)
+//	LAW_CHANGED       → LawPoller        → LLM gRPC → DB (no Kafka)
+type EventType string
+
+func (e EventType) String() string { return string(e) }
+
+func (e EventType) Valid() bool {
+	switch e {
+	case EventTypeHoBomMessage, EventTypeHoBomLog, EventTypeSpaceEvent, EventTypeSpaceLog, EventTypeLawChanged:
+		return true
+	}
+	return false
+}
+
+// OutboxStatus represents the processing state of an outbox event.
+// State machine: PENDING → SENT (success) or PENDING → FAILED (error).
+// Once SENT or FAILED, the event is not polled again.
+type OutboxStatus string
+
+func (s OutboxStatus) String() string { return string(s) }
+
+func (s OutboxStatus) Valid() bool {
+	switch s {
+	case OutboxPending, OutboxSent, OutboxFailed:
+		return true
+	}
+	return false
+}
+
 const (
-	// EventTypeHoBomMessage is the outbox event type for user-to-user messages.
-	EventTypeHoBomMessage = "MESSAGE"
-	// EventTypeHoBomLog is the outbox event type for API request/response logs.
-	EventTypeHoBomLog = "HOBOM_LOG"
+	EventTypeHoBomMessage EventType = "MESSAGE"
+	EventTypeHoBomLog     EventType = "HOBOM_LOG"
+	EventTypeSpaceEvent   EventType = "SPACE_EVENT"
+	EventTypeSpaceLog     EventType = "SPACE_LOG"
+	EventTypeLawChanged   EventType = "LAW_CHANGED"
 
-	// OutboxPending is the initial state of an outbox event awaiting dispatch.
-	OutboxPending = "PENDING"
-	// OutboxSent indicates the event was successfully published to Kafka.
-	OutboxSent = "SENT"
-	// OutboxFailed indicates the event could not be published after all retries.
-	OutboxFailed = "FAILED"
+	OutboxPending OutboxStatus = "PENDING"
+	OutboxSent    OutboxStatus = "SENT"
+	OutboxFailed  OutboxStatus = "FAILED"
 
-	// HoBomMessage is the Kafka topic for user-to-user message events.
-	HoBomMessage = "hobom.messages"
-	// HoBomLog is the Kafka topic for API log events.
-	HoBomLog = "hobom.logs"
+	// Kafka topics — each poller publishes to a specific topic.
+	// Consumers downstream (hobom-internal-backend, etc.) subscribe to these.
+	HoBomMessage     = "hobom.messages"
+	HoBomLog         = "hobom.logs"
+	HoBomSpaceEvents = "hobom.space-events"
 
-	// Mail identifies an email delivery message type.
+	// Message delivery types used in DeliverHoBomMessageCommand.
 	Mail = "MAIL_MESSAGE"
-	// Push identifies a push-notification message type.
 	Push = "PUSH_MESSAGE"
 
-	// HoBomTodayMenuDLQPrefix is the Redis key prefix for message-event DLQ entries.
-	// All DLQ keys must start with "dlq:" for pattern-matching queries.
+	// DLQ key prefixes — each poller uses a distinct prefix so DLQ entries
+	// can be filtered and retried per category.
+	// Format: "dlq:<category>:<event-id>", e.g. "dlq:menu:evt-abc-123"
 	HoBomTodayMenuDLQPrefix = "dlq:menu:"
-	// HoBomLogDLQPrefix is the Redis key prefix for log-event DLQ entries.
-	HoBomLogDLQPrefix = "dlq:log:"
+	HoBomLogDLQPrefix       = "dlq:log:"
+	HoBomSpaceDLQPrefix     = "dlq:space:"
+	HoBomSpaceLogDLQPrefix  = "dlq:space-log:"
+	HoBomLawDLQPrefix       = "dlq:law:"
 
-	// TTL72Hours is the retention period for DLQ entries.
+	// TTL72Hours is the Redis TTL for DLQ entries. After 72h, unretried
+	// entries expire automatically to prevent unbounded storage growth.
 	TTL72Hours = 72 * time.Hour
 
-	// HoBomEventProcessorInternalApiPrefix is the base path for internal management APIs.
+	// HoBomEventProcessorInternalApiPrefix is the base path for DLQ
+	// management endpoints, scoped under an internal namespace.
 	HoBomEventProcessorInternalApiPrefix = "/hobom-event-processor/internal/api/v1"
 )
