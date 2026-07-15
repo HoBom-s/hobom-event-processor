@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"time"
 
+	angelPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/angel/outbox/v1"
 	lawOutboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/outbox/v1"
 	lawPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/v1"
 	llmPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/llm/v1"
@@ -30,6 +31,7 @@ type DLQService struct {
 	publisher        publisher.KafkaPublisher
 	patchClient      outboxPb.PatchOutboxControllerClient
 	spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient
+	angelPatchClient angelPb.PatchHoBomAngelOutboxControllerClient
 	llmClient        llmPb.StudyMaterialServiceClient
 	saveClient       lawPb.SaveStudyMaterialControllerClient
 }
@@ -39,6 +41,7 @@ func NewService(
 	pub publisher.KafkaPublisher,
 	patchClient outboxPb.PatchOutboxControllerClient,
 	spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient,
+	angelPatchClient angelPb.PatchHoBomAngelOutboxControllerClient,
 	llmClient llmPb.StudyMaterialServiceClient,
 	saveClient lawPb.SaveStudyMaterialControllerClient,
 ) *DLQService {
@@ -47,6 +50,7 @@ func NewService(
 		publisher:        pub,
 		patchClient:      patchClient,
 		spacePatchClient: spacePatchClient,
+		angelPatchClient: angelPatchClient,
 		llmClient:        llmClient,
 		saveClient:       saveClient,
 	}
@@ -127,6 +131,16 @@ func (s *DLQService) RetryDLQ(ctx context.Context, key string) error {
 			EventId: k.EventID,
 		}); err != nil {
 			slog.Warn("failed to mark space outbox as SENT after DLQ retry", "eventId", k.EventID, "err", err)
+			return err
+		}
+	} else if k.IsAngelKey() {
+		if s.angelPatchClient == nil {
+			return fmt.Errorf("angel gRPC connection not available")
+		}
+		if _, err := s.angelPatchClient.PatchOutboxMarkAsSentUseCase(ctx, &angelPb.MarkRequest{
+			EventId: k.EventID,
+		}); err != nil {
+			slog.Warn("failed to mark angel outbox as SENT after DLQ retry", "eventId", k.EventID, "err", err)
 			return err
 		}
 	} else {

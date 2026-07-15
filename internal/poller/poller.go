@@ -52,7 +52,7 @@ type Poller interface {
 // Returns a WaitGroup that completes when all pollers have exited.
 // Callers should cancel ctx, then call wg.Wait() to ensure in-flight
 // poll cycles finish before shutting down shared resources (gRPC, Kafka).
-func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
+func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn, angelConn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
 	pollers := []Poller{
 		NewMessagePoller(conn, kafkaPublisher, dlqStore),
 		NewLogPoller(conn, kafkaPublisher, dlqStore),
@@ -63,6 +63,10 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc
 	}
 	if llmConn != nil {
 		pollers = append(pollers, NewLawPoller(conn, llmConn, dlqStore))
+	}
+	if angelConn != nil {
+		pollers = append(pollers, NewAngelPoller(angelConn, kafkaPublisher, dlqStore))
+		pollers = append(pollers, NewAngelLogPoller(angelConn, kafkaPublisher, dlqStore))
 	}
 
 	var wg sync.WaitGroup
