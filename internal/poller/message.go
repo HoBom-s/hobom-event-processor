@@ -42,3 +42,22 @@ type HoBomLogMessageCommand struct {
 	UserId      string                 `json:"userId"`
 	Payload     map[string]interface{} `json:"payload,omitempty"`
 }
+
+// HoBomAngelEventCommand is the Kafka payload for Angel notification events.
+// Published to "hobom.angel-events". It flattens the discriminated outbox
+// payload (approval / foster-termination); consumers route on EventType and
+// read only the fields relevant to that type. RecipientUserId is always the
+// notification target.
+type HoBomAngelEventCommand struct {
+	EventType       string `json:"eventType"`
+	RecipientUserId string `json:"recipientUserId"`
+	// Approval events (ADOPTION/FOSTER/STAFF_PROMOTION/SHELTER_VERIFICATION).
+	ApprovalType string `json:"approvalType,omitempty"`
+	SubjectRef   string `json:"subjectRef,omitempty"`
+	ShelterId    string `json:"shelterId,omitempty"`
+	// Foster termination.
+	FosterProcessId string `json:"fosterProcessId,omitempty"`
+	AnimalId        string `json:"animalId,omitempty"`
+	Reason          string `json:"reason,omitempty"`
+	OccurredAt      string `json:"occurredAt,omitempty"`
+}

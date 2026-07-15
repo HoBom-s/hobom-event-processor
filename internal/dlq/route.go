@@ -1,6 +1,7 @@
 package dlq
 
 import (
+	angelPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/angel/outbox/v1"
 	lawPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/law/v1"
 	llmPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/llm/v1"
 	outboxPb "github.com/HoBom-s/hobom-event-processor/infra/grpc/message/outbox/v1"
@@ -22,10 +23,15 @@ import (
 // gRPC clients are created from the provided connections. spaceConn and
 // llmConn may be nil — in that case, DLQ retry for space/law events will
 // return an error explaining the missing connection.
-func RegisterRoutes(router *gin.Engine, redisDLQ *redis.RedisDLQStore, pub publisher.KafkaPublisher, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn, apiKey string) {
+func RegisterRoutes(router *gin.Engine, redisDLQ *redis.RedisDLQStore, pub publisher.KafkaPublisher, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn, angelConn *grpc.ClientConn, apiKey string) {
 	var spacePatchClient spacePb.PatchHoBomSpaceOutboxControllerClient
 	if spaceConn != nil {
 		spacePatchClient = spacePb.NewPatchHoBomSpaceOutboxControllerClient(spaceConn)
+	}
+
+	var angelPatchClient angelPb.PatchHoBomAngelOutboxControllerClient
+	if angelConn != nil {
+		angelPatchClient = angelPb.NewPatchHoBomAngelOutboxControllerClient(angelConn)
 	}
 
 	var llmClient llmPb.StudyMaterialServiceClient
@@ -35,7 +41,7 @@ func RegisterRoutes(router *gin.Engine, redisDLQ *redis.RedisDLQStore, pub publi
 		saveClient = lawPb.NewSaveStudyMaterialControllerClient(conn)
 	}
 
-	service := NewService(redisDLQ, pub, outboxPb.NewPatchOutboxControllerClient(conn), spacePatchClient, llmClient, saveClient)
+	service := NewService(redisDLQ, pub, outboxPb.NewPatchOutboxControllerClient(conn), spacePatchClient, angelPatchClient, llmClient, saveClient)
 	handler := NewHandler(service)
 
 	dlq := router.Group(poller.HoBomEventProcessorInternalApiPrefix + "/dlq")

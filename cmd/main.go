@@ -79,6 +79,11 @@ func main() {
 		defer llmConn.Close()
 	}
 
+	angelConn := optionalGRPCConn("HOBOM_ANGEL_GRPC_ADDR", "HOBOM_ANGEL_GRPC_API_KEY", grpcApiKey)
+	if angelConn != nil {
+		defer angelConn.Close()
+	}
+
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -93,14 +98,14 @@ func main() {
 	// --- Background pollers ---
 	// Each poller runs a 5s-interval loop: gRPC fetch → process → Kafka/LLM → mark SENT.
 	// Failed events are saved to Redis DLQ for manual retry via the HTTP API.
-	wg := poller.StartAllPollers(ctx, conn, spaceConn, llmConn, kafkaPublisher, rc)
+	wg := poller.StartAllPollers(ctx, conn, spaceConn, llmConn, angelConn, kafkaPublisher, rc)
 
 	// --- HTTP server ---
 	// Health endpoint: component-level status (Redis, gRPC).
 	// DLQ endpoints: inspect and retry failed events, gated by x-api-key.
 	router := gin.Default()
 	health.RegisterRoutes(router, rdb, conn, spaceConn)
-	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn, llmConn, os.Getenv("HOBOM_INTERNAL_API_KEY"))
+	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn, llmConn, angelConn, os.Getenv("HOBOM_INTERNAL_API_KEY"))
 
 	httpAddr := envOrDefault("HOBOM_HTTP_ADDR", ":8082")
 	server := &http.Server{Addr: httpAddr, Handler: router}
