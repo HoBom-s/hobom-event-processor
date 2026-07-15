@@ -14,7 +14,8 @@ import (
 )
 
 // angelLogServiceType tags Angel access logs in the shared "hobom.logs" stream.
-const angelLogServiceType = "ANGEL"
+// Must match hobom-internal-backend's ServiceType enum (HOBOM_* convention).
+const angelLogServiceType = "HOBOM_ANGEL"
 
 type angelLogPoller struct {
 	findClient  angelPb.FindHoBomAngelOutboxControllerClient
