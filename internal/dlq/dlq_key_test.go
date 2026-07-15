@@ -17,6 +17,8 @@ func TestParseDLQKey_ValidKeys(t *testing.T) {
 		{"dlq:space:event-789", DLQCategorySpace, "event-789"},
 		{"dlq:space-log:event-abc", DLQCategorySpaceLog, "event-abc"},
 		{"dlq:law:event-def", DLQCategoryLaw, "event-def"},
+		{"dlq:angel:event-ghi", DLQCategoryAngel, "event-ghi"},
+		{"dlq:angel-log:event-jkl", DLQCategoryAngelLog, "event-jkl"},
 	}
 
 	for _, tt := range tests {
@@ -41,7 +43,7 @@ func TestParseDLQKey_InvalidKeys(t *testing.T) {
 		"invalid",
 		"notdlq:menu:event",
 		"dlq:",
-		"dlq:menu:",     // empty event ID (parsed but invalid via Valid())
+		"dlq:menu:", // empty event ID (parsed but invalid via Valid())
 	}
 
 	for _, raw := range tests {
@@ -71,7 +73,9 @@ func TestDLQKey_Valid(t *testing.T) {
 		{DLQKey{DLQCategorySpace, "event-3"}, true},
 		{DLQKey{DLQCategorySpaceLog, "event-4"}, true},
 		{DLQKey{DLQCategoryLaw, "event-5"}, true},
-		{DLQKey{DLQCategory("unknown"), "event-6"}, false},
+		{DLQKey{DLQCategoryAngel, "event-6"}, true},
+		{DLQKey{DLQCategoryAngelLog, "event-7"}, true},
+		{DLQKey{DLQCategory("unknown"), "event-8"}, false},
 		{DLQKey{DLQCategoryMenu, ""}, false},
 	}
 
@@ -93,6 +97,8 @@ func TestDLQKey_Topic(t *testing.T) {
 		{DLQCategoryLog, poller.HoBomLog},
 		{DLQCategorySpaceLog, poller.HoBomLog},
 		{DLQCategorySpace, poller.HoBomSpaceEvents},
+		{DLQCategoryAngel, poller.HoBomAngelEvents},
+		{DLQCategoryAngelLog, poller.HoBomLog},
 		{DLQCategoryLaw, ""},
 	}
 

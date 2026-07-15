@@ -25,6 +25,8 @@ const (
 	DLQCategorySpace    DLQCategory = "space"
 	DLQCategorySpaceLog DLQCategory = "space-log"
 	DLQCategoryLaw      DLQCategory = "law"
+	DLQCategoryAngel    DLQCategory = "angel"
+	DLQCategoryAngelLog DLQCategory = "angel-log"
 )
 
 // DLQKey is a parsed DLQ Redis key.
@@ -50,7 +52,8 @@ func (k DLQKey) Valid() bool {
 		return false
 	}
 	switch k.Category {
-	case DLQCategoryMenu, DLQCategoryLog, DLQCategorySpace, DLQCategorySpaceLog, DLQCategoryLaw:
+	case DLQCategoryMenu, DLQCategoryLog, DLQCategorySpace, DLQCategorySpaceLog, DLQCategoryLaw,
+		DLQCategoryAngel, DLQCategoryAngelLog:
 		return true
 	}
 	return false
@@ -64,10 +67,12 @@ func (k DLQKey) Topic() (string, error) {
 	switch k.Category {
 	case DLQCategoryMenu:
 		return poller.HoBomMessage, nil
-	case DLQCategoryLog, DLQCategorySpaceLog:
+	case DLQCategoryLog, DLQCategorySpaceLog, DLQCategoryAngelLog:
 		return poller.HoBomLog, nil
 	case DLQCategorySpace:
 		return poller.HoBomSpaceEvents, nil
+	case DLQCategoryAngel:
+		return poller.HoBomAngelEvents, nil
 	case DLQCategoryLaw:
 		return "", nil
 	default:
@@ -88,6 +93,12 @@ func (k DLQKey) IsLawKey() bool {
 	return k.Category == DLQCategoryLaw
 }
 
+// IsAngelKey returns true if this key belongs to angel or angel-log events.
+// Angel events require the for-hobom-angel-backend gRPC connection for marking.
+func (k DLQKey) IsAngelKey() bool {
+	return k.Category == DLQCategoryAngel || k.Category == DLQCategoryAngelLog
+}
+
 // ParseDLQKey parses a raw Redis key string into a DLQKey.
 //
 // Expected format: "dlq:<category>:<event-id>"
@@ -101,10 +112,15 @@ func ParseDLQKey(raw string) (DLQKey, error) {
 
 	rest := raw[len("dlq:"):]
 
-	// Check compound category "space-log" first.
+	// Check compound categories (hyphenated) first — a plain SplitN would
+	// otherwise break "space-log"/"angel-log" at the hyphen's colon boundary.
 	if strings.HasPrefix(rest, "space-log:") {
 		eventID := rest[len("space-log:"):]
 		return DLQKey{Category: DLQCategorySpaceLog, EventID: eventID}, nil
+	}
+	if strings.HasPrefix(rest, "angel-log:") {
+		eventID := rest[len("angel-log:"):]
+		return DLQKey{Category: DLQCategoryAngelLog, EventID: eventID}, nil
 	}
 
 	// Simple category: split on first colon only to preserve colons in event IDs.
