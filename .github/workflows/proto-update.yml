@@ -31,7 +31,9 @@ jobs:
 
       - name: Generate proto
         run: |
-          rm -rf infra/grpc
+          # Remove only generated package subdirectories, preserving
+          # hand-written top-level files (e.g. infra/grpc/conn.go).
+          find infra/grpc -mindepth 1 -maxdepth 1 -type d -exec rm -rf {} +
           buf generate buf.build/hobom/hobom-buf-proto
 
       - name: Create PR if changed
