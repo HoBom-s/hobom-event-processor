@@ -16,7 +16,6 @@ func TestParseDLQKey_ValidKeys(t *testing.T) {
 		{"dlq:log:event-456", DLQCategoryLog, "event-456"},
 		{"dlq:space:event-789", DLQCategorySpace, "event-789"},
 		{"dlq:space-log:event-abc", DLQCategorySpaceLog, "event-abc"},
-		{"dlq:law:event-def", DLQCategoryLaw, "event-def"},
 		{"dlq:angel:event-ghi", DLQCategoryAngel, "event-ghi"},
 		{"dlq:angel-log:event-jkl", DLQCategoryAngelLog, "event-jkl"},
 	}
@@ -72,7 +71,6 @@ func TestDLQKey_Valid(t *testing.T) {
 		{DLQKey{DLQCategoryLog, "event-2"}, true},
 		{DLQKey{DLQCategorySpace, "event-3"}, true},
 		{DLQKey{DLQCategorySpaceLog, "event-4"}, true},
-		{DLQKey{DLQCategoryLaw, "event-5"}, true},
 		{DLQKey{DLQCategoryAngel, "event-6"}, true},
 		{DLQKey{DLQCategoryAngelLog, "event-7"}, true},
 		{DLQKey{DLQCategory("unknown"), "event-8"}, false},
@@ -99,7 +97,6 @@ func TestDLQKey_Topic(t *testing.T) {
 		{DLQCategorySpace, poller.HoBomSpaceEvents},
 		{DLQCategoryAngel, poller.HoBomAngelEvents},
 		{DLQCategoryAngelLog, poller.HoBomLog},
-		{DLQCategoryLaw, ""},
 	}
 
 	for _, tt := range tests {
@@ -128,11 +125,3 @@ func TestDLQKey_IsSpaceKey(t *testing.T) {
 	}
 }
 
-func TestDLQKey_IsLawKey(t *testing.T) {
-	if !(&DLQKey{DLQCategoryLaw, "e"}).IsLawKey() {
-		t.Error("law should be law key")
-	}
-	if (&DLQKey{DLQCategoryMenu, "e"}).IsLawKey() {
-		t.Error("menu should not be law key")
-	}
-}

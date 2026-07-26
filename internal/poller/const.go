@@ -13,14 +13,13 @@ import "time"
 //	HOBOM_LOG         → LogPoller        → Kafka (hobom.logs)
 //	SPACE_EVENT       → SpacePoller      → Kafka (hobom.space-events)
 //	SPACE_LOG         → SpaceLogPoller   → Kafka (hobom.logs)
-//	LAW_CHANGED       → LawPoller        → LLM gRPC → DB (no Kafka)
 type EventType string
 
 func (e EventType) String() string { return string(e) }
 
 func (e EventType) Valid() bool {
 	switch e {
-	case EventTypeHoBomMessage, EventTypeHoBomLog, EventTypeSpaceEvent, EventTypeSpaceLog, EventTypeLawChanged,
+	case EventTypeHoBomMessage, EventTypeHoBomLog, EventTypeSpaceEvent, EventTypeSpaceLog,
 		EventTypeAngelAdoptionApproved, EventTypeAngelFosterApproved, EventTypeAngelStaffPromotionApproved,
 		EventTypeAngelShelterVerificationApproved, EventTypeAngelFosterTerminated:
 		return true
@@ -48,7 +47,6 @@ const (
 	EventTypeHoBomLog     EventType = "HOBOM_LOG"
 	EventTypeSpaceEvent   EventType = "SPACE_EVENT"
 	EventTypeSpaceLog     EventType = "SPACE_LOG"
-	EventTypeLawChanged   EventType = "LAW_CHANGED"
 
 	// Angel notification events (for-hobom-angel-backend). Each is polled
 	// separately and published to hobom.angel-events. Angel access logs reuse
@@ -81,7 +79,6 @@ const (
 	HoBomLogDLQPrefix       = "dlq:log:"
 	HoBomSpaceDLQPrefix     = "dlq:space:"
 	HoBomSpaceLogDLQPrefix  = "dlq:space-log:"
-	HoBomLawDLQPrefix       = "dlq:law:"
 	HoBomAngelDLQPrefix     = "dlq:angel:"
 	HoBomAngelLogDLQPrefix  = "dlq:angel-log:"
 

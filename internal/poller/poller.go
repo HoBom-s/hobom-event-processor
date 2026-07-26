@@ -2,7 +2,7 @@
 //
 // Each poller runs a periodic loop that:
 //  1. Fetches PENDING outbox events from a backend service via gRPC.
-//  2. Processes them (publish to Kafka or call LLM).
+//  2. Processes them (publish to Kafka).
 //  3. Marks the outbox entry as SENT (success) or FAILED (error).
 //  4. On failure, saves the event payload to Redis DLQ for manual retry.
 //
@@ -47,12 +47,11 @@ type Poller interface {
 // Poller selection is based on available gRPC connections:
 //   - MessagePoller and LogPoller always start (use the main conn).
 //   - SpacePoller and SpaceLogPoller start only when spaceConn != nil.
-//   - LawPoller starts only when llmConn != nil.
 //
 // Returns a WaitGroup that completes when all pollers have exited.
 // Callers should cancel ctx, then call wg.Wait() to ensure in-flight
 // poll cycles finish before shutting down shared resources (gRPC, Kafka).
-func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, llmConn *grpc.ClientConn, angelConn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
+func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc.ClientConn, angelConn *grpc.ClientConn, kafkaPublisher publisher.KafkaPublisher, dlqStore redis.DLQStore) *sync.WaitGroup {
 	pollers := []Poller{
 		NewMessagePoller(conn, kafkaPublisher, dlqStore),
 		NewLogPoller(conn, kafkaPublisher, dlqStore),
@@ -60,9 +59,6 @@ func StartAllPollers(ctx context.Context, conn *grpc.ClientConn, spaceConn *grpc
 	if spaceConn != nil {
 		pollers = append(pollers, NewSpacePoller(spaceConn, kafkaPublisher, dlqStore))
 		pollers = append(pollers, NewSpaceLogPoller(spaceConn, kafkaPublisher, dlqStore))
-	}
-	if llmConn != nil {
-		pollers = append(pollers, NewLawPoller(conn, llmConn, dlqStore))
 	}
 	if angelConn != nil {
 		pollers = append(pollers, NewAngelPoller(angelConn, kafkaPublisher, dlqStore))

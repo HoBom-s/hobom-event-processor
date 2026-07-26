@@ -2,8 +2,7 @@
 // and its Redis implementation.
 //
 // DLQ entries are created by pollers when event processing fails (Kafka
-// publish error, LLM call error, etc.). They are inspected and retried
-// via the DLQ HTTP API.
+// publish error, etc.). They are inspected and retried via the DLQ HTTP API.
 //
 // Key format: "dlq:<category>:<event-id>"
 // TTL: 72 hours (auto-expire if not manually retried).

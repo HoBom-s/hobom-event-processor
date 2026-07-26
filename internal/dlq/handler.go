@@ -5,7 +5,7 @@
 // and are used by operators to:
 //   - List DLQ entries (optionally filtered by category prefix)
 //   - Inspect the raw payload of a specific DLQ entry
-//   - Retry a failed event (republish to Kafka or re-execute law orchestration)
+//   - Retry a failed event (republish to Kafka)
 package dlq
 
 import (
@@ -50,7 +50,7 @@ func NewHandler(service *DLQService) *DLQHandler {
 //	GET /dlq                    → all keys matching "dlq:*"
 //
 // The prefix must be one of the allowed DLQ prefixes (dlq:menu:, dlq:log:,
-// dlq:space:, dlq:space-log:, dlq:law:) or empty.
+// dlq:space:, dlq:space-log:) or empty.
 func (h *DLQHandler) GetDLQS(c *gin.Context) {
 	prefix := c.Query("prefix")
 	if !isValidDLQPrefix(prefix) {
@@ -101,7 +101,6 @@ func (h *DLQHandler) GetDLQ(c *gin.Context) {
 //
 // Retry strategy depends on the DLQ category:
 //   - menu/log/space/space-log → republish to Kafka + mark SENT + delete DLQ
-//   - law                      → re-execute LLM → save → mark SENT + delete DLQ
 //
 // On success, the DLQ entry is removed from Redis.
 func (h *DLQHandler) RetryDLQ(c *gin.Context) {
