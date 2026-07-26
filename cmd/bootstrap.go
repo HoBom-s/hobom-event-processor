@@ -44,7 +44,7 @@ func mustGRPCConn(addr, apiKey string) *grpc.ClientConn {
 
 // optionalGRPCConn establishes a gRPC client connection only if the address
 // env var is set. Returns nil when the env var is absent, allowing callers
-// to skip features that depend on the connection (e.g. space poller, law poller).
+// to skip features that depend on the connection (e.g. space poller, angel poller).
 // Falls back to fallbackApiKey when the dedicated API key env var is not set.
 func optionalGRPCConn(addrEnv, apiKeyEnv, fallbackApiKey string) *grpc.ClientConn {
 	addr := os.Getenv(addrEnv)

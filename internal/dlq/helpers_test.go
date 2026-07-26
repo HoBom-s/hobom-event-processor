@@ -16,7 +16,6 @@ func TestIsValidDLQPrefix(t *testing.T) {
 		{poller.HoBomLogDLQPrefix, true},
 		{poller.HoBomSpaceDLQPrefix, true},
 		{poller.HoBomSpaceLogDLQPrefix, true},
-		{poller.HoBomLawDLQPrefix, true},
 		{"arbitrary:", false},
 		{"dlq:unknown:", false},
 	}
