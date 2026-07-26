@@ -11,7 +11,6 @@ var allowedPrefixes = []string{
 	poller.HoBomLogDLQPrefix,
 	poller.HoBomSpaceDLQPrefix,
 	poller.HoBomSpaceLogDLQPrefix,
-	poller.HoBomLawDLQPrefix,
 }
 
 // isValidDLQPrefix returns true if prefix is one of the allowed DLQ

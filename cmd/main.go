@@ -1,5 +1,5 @@
 // hobom-event-processor is a Transactional Outbox consumer that bridges
-// backend databases and Kafka/LLM pipelines.
+// backend databases and Kafka pipelines.
 //
 // # Architecture
 //
@@ -13,8 +13,7 @@
 //	│  ├─ MessagePoller  ──► Kafka             │
 //	│  ├─ LogPoller      ──► Kafka (batch)     │
 //	│  ├─ SpacePoller    ──► Kafka             │
-//	│  ├─ SpaceLogPoller ──► Kafka (batch)     │
-//	│  └─ LawPoller      ──► LLM gRPC ──► DB  │
+//	│  └─ SpaceLogPoller ──► Kafka (batch)     │
 //	│                                          │
 //	│  DLQ Management (HTTP API, auth-gated)   │
 //	│  ├─ GET  /dlq           list keys        │
@@ -24,9 +23,9 @@
 //	│  Health Check (HTTP API)                 │
 //	│  └─ GET /health                          │
 //	└──────────────────────────────────────────┘
-//	       │              │              │
-//	       ▼              ▼              ▼
-//	   [Kafka]    [hobom-llm-service]  [Redis DLQ]
+//	       │                             │
+//	       ▼                             ▼
+//	   [Kafka]                       [Redis DLQ]
 //
 // # Startup Flow
 //
@@ -34,7 +33,6 @@
 //  2. Establish gRPC connections:
 //     - main conn → for-hobom-backend (required)
 //     - spaceConn → hobom-space-backend (optional, env-driven)
-//     - llmConn   → hobom-llm-service-backend (optional, env-driven)
 //  3. Create Kafka publisher and Redis DLQ store.
 //  4. Launch all pollers — each runs as its own goroutine with a 5s tick.
 //  5. Start Gin HTTP server (health + DLQ endpoints).
@@ -63,7 +61,7 @@ func main() {
 
 	// --- gRPC connections ---
 	// Main connection is required (for-hobom-backend: outbox find/patch).
-	// Space and LLM connections are optional — pollers that depend on them
+	// Space and angel connections are optional — pollers that depend on them
 	// are simply not started when the env var is absent.
 	grpcApiKey := mustEnv("HOBOM_GRPC_API_KEY")
 	conn := mustGRPCConn(mustEnv("HOBOM_GRPC_ADDR"), grpcApiKey)
@@ -72,11 +70,6 @@ func main() {
 	spaceConn := optionalGRPCConn("HOBOM_SPACE_GRPC_ADDR", "HOBOM_SPACE_GRPC_API_KEY", grpcApiKey)
 	if spaceConn != nil {
 		defer spaceConn.Close()
-	}
-
-	llmConn := optionalGRPCConn("HOBOM_LLM_GRPC_ADDR", "HOBOM_LLM_GRPC_API_KEY", grpcApiKey)
-	if llmConn != nil {
-		defer llmConn.Close()
 	}
 
 	angelConn := optionalGRPCConn("HOBOM_ANGEL_GRPC_ADDR", "HOBOM_ANGEL_GRPC_API_KEY", grpcApiKey)
@@ -96,16 +89,16 @@ func main() {
 	rc := redisClient.NewRedisDLQStore(rdb)
 
 	// --- Background pollers ---
-	// Each poller runs a 5s-interval loop: gRPC fetch → process → Kafka/LLM → mark SENT.
+	// Each poller runs a 5s-interval loop: gRPC fetch → process → Kafka → mark SENT.
 	// Failed events are saved to Redis DLQ for manual retry via the HTTP API.
-	wg := poller.StartAllPollers(ctx, conn, spaceConn, llmConn, angelConn, kafkaPublisher, rc)
+	wg := poller.StartAllPollers(ctx, conn, spaceConn, angelConn, kafkaPublisher, rc)
 
 	// --- HTTP server ---
 	// Health endpoint: component-level status (Redis, gRPC).
 	// DLQ endpoints: inspect and retry failed events, gated by x-api-key.
 	router := gin.Default()
 	health.RegisterRoutes(router, rdb, conn, spaceConn)
-	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn, llmConn, angelConn, os.Getenv("HOBOM_INTERNAL_API_KEY"))
+	dlq.RegisterRoutes(router, rc, kafkaPublisher, conn, spaceConn, angelConn, os.Getenv("HOBOM_INTERNAL_API_KEY"))
 
 	httpAddr := envOrDefault("HOBOM_HTTP_ADDR", ":8082")
 	server := &http.Server{Addr: httpAddr, Handler: router}

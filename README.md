@@ -34,35 +34,6 @@ Failed events are stored in a Redis-backed Dead Letter Queue (DLQ) and can be re
                                    │  GET  /dlq/:key              │
                                    │  POST /dlq/retry/:key        │
                                    └─────────────────────────────┘
-
-### LawPoller (Direct Orchestration — No Kafka)
-
-LAW_CHANGED 이벤트는 Kafka를 사용하지 않고 직접 오케스트레이션합니다.
-
-```
-┌──────────────────────────┐
-│  for-hobom-backend       │
-│  Outbox: LAW_CHANGED     │
-└────────────┬─────────────┘
-             │ gRPC poll (5s)
-  ┌──────────▼──────────┐
-  │  LawPoller           │
-  └──┬──────────────┬────┘
-     │              │
-     │ 1. Generate  │ 3. Save result
-     ▼              ▼
-  ┌──────────┐  ┌──────────────────────────┐
-  │ LLM gRPC │  │ for-hobom-backend gRPC   │
-  │ (50052)  │  │ SaveStudyMaterial        │
-  └──────────┘  └──────────────────────────┘
-     │
-     │ on failure
-     ▼
-  ┌─────────────────────────────┐
-  │  Redis DLQ (dlq:law:[id])   │
-  │  ⚠ Kafka retry 미지원       │
-  └─────────────────────────────┘
-```
 ```
 
 ---
@@ -74,7 +45,6 @@ LAW_CHANGED 이벤트는 Kafka를 사용하지 않고 직접 오케스트레이�
 | `MESSAGE`     | `hobom.messages`     | `dlq:menu:`  | for-hobom-backend        | User-to-user message delivery    |
 | `HOBOM_LOG`   | `hobom.logs`         | `dlq:log:`   | for-hobom-backend        | API request/response log batches |
 | `SPACE_EVENT` | `hobom.space-events` | `dlq:space:` | hobom-space-backend      | Space document events            |
-| `LAW_CHANGED` | N/A (direct)         | `dlq:law:`   | for-hobom-backend + LLM  | Privacy-law study material gen   |
 
 ---
 
@@ -87,8 +57,6 @@ LAW_CHANGED 이벤트는 Kafka를 사용하지 않고 직접 오케스트레이�
 5. **DLQ replay**: call `POST /dlq/retry/:key` to re-publish and remove from DLQ.
 
 Log events are published as a single JSON array per poll cycle for efficiency. DLQ entries for log events store individual payloads as single-element arrays to ensure consistent format on retry.
-
-**LAW_CHANGED**: Kafka를 사용하지 않고 직접 오케스트레이션합니다. Poll → LLM Generate → Save StudyMaterial → Mark SENT. 실패 시 DLQ에 저장되지만, DLQ retry API를 통한 재시도는 지원하지 않습니다 (Kafka topic이 없으므로).
 
 ---
 
@@ -139,8 +107,6 @@ All configuration is managed via environment variables. Locally, create a `.env`
 | `HOBOM_REDIS_ADDR`         | Yes      | -                       | Redis address (e.g. `redis:6379`)                                            |
 | `HOBOM_SPACE_GRPC_ADDR`    | No       | -                       | hobom-space-backend gRPC address. SpacePoller only runs when this is set     |
 | `HOBOM_SPACE_GRPC_API_KEY` | No       | `HOBOM_GRPC_API_KEY`    | Dedicated API key for space gRPC. Falls back to the default API key if unset |
-| `HOBOM_LLM_GRPC_ADDR`     | No       | -                       | hobom-llm-service-backend gRPC address. LawPoller only runs when this is set |
-| `HOBOM_LLM_GRPC_API_KEY`  | No       | `HOBOM_GRPC_API_KEY`    | Dedicated API key for LLM gRPC. Falls back to the default API key if unset   |
 | `HOBOM_HTTP_ADDR`          | No       | `:8082`                 | HTTP server listen address                                                   |
 
 Kafka publisher defaults (via `DefaultKafkaConfig`): `RequireOne` acks, `LeastBytes` balancer, 10s write timeout.

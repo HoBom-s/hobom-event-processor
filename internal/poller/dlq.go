@@ -9,9 +9,8 @@ import (
 
 // saveDLQ persists a failed event payload to the Redis DLQ store.
 //
-// Called when a poller fails to publish an event to Kafka (after all retries)
-// or when the LLM call fails for law events. The DLQ entry enables manual
-// retry via the DLQ HTTP API (POST /dlq/retry/:key).
+// Called when a poller fails to publish an event to Kafka (after all retries).
+// The DLQ entry enables manual retry via the DLQ HTTP API (POST /dlq/retry/:key).
 //
 // Key format: dlq:<category>:<event-id> (prefix already includes "dlq:<category>:").
 // TTL: 72 hours — after which the entry auto-expires if not retried.

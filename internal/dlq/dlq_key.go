@@ -16,7 +16,6 @@ import (
 //	log       → LogPoller (for-hobom-backend)
 //	space     → SpacePoller (hobom-space-backend)
 //	space-log → SpaceLogPoller (hobom-space-backend)
-//	law       → LawPoller (for-hobom-backend + LLM)
 type DLQCategory string
 
 const (
@@ -24,7 +23,6 @@ const (
 	DLQCategoryLog      DLQCategory = "log"
 	DLQCategorySpace    DLQCategory = "space"
 	DLQCategorySpaceLog DLQCategory = "space-log"
-	DLQCategoryLaw      DLQCategory = "law"
 	DLQCategoryAngel    DLQCategory = "angel"
 	DLQCategoryAngelLog DLQCategory = "angel-log"
 )
@@ -35,7 +33,6 @@ const (
 // Examples:
 //   - "dlq:menu:evt-abc-123"
 //   - "dlq:space-log:evt-xyz-456"
-//   - "dlq:law:evt-789"
 type DLQKey struct {
 	Category DLQCategory
 	EventID  string
@@ -52,7 +49,7 @@ func (k DLQKey) Valid() bool {
 		return false
 	}
 	switch k.Category {
-	case DLQCategoryMenu, DLQCategoryLog, DLQCategorySpace, DLQCategorySpaceLog, DLQCategoryLaw,
+	case DLQCategoryMenu, DLQCategoryLog, DLQCategorySpace, DLQCategorySpaceLog,
 		DLQCategoryAngel, DLQCategoryAngelLog:
 		return true
 	}
@@ -61,8 +58,6 @@ func (k DLQKey) Valid() bool {
 
 // Topic returns the Kafka topic for this DLQ category.
 // Used during retry to republish the event to the correct topic.
-// Law events return an empty topic because they bypass Kafka entirely
-// (retry re-executes the LLM → save orchestration instead).
 func (k DLQKey) Topic() (string, error) {
 	switch k.Category {
 	case DLQCategoryMenu:
@@ -73,8 +68,6 @@ func (k DLQKey) Topic() (string, error) {
 		return poller.HoBomSpaceEvents, nil
 	case DLQCategoryAngel:
 		return poller.HoBomAngelEvents, nil
-	case DLQCategoryLaw:
-		return "", nil
 	default:
 		return "", fmt.Errorf("unrecognized DLQ category: %s", k.Category)
 	}
@@ -84,13 +77,6 @@ func (k DLQKey) Topic() (string, error) {
 // Space events require the hobom-space-backend gRPC connection for marking.
 func (k DLQKey) IsSpaceKey() bool {
 	return k.Category == DLQCategorySpace || k.Category == DLQCategorySpaceLog
-}
-
-// IsLawKey returns true if this key belongs to law events.
-// Law events follow a completely different retry path (LLM → save → mark)
-// instead of Kafka republish.
-func (k DLQKey) IsLawKey() bool {
-	return k.Category == DLQCategoryLaw
 }
 
 // IsAngelKey returns true if this key belongs to angel or angel-log events.
